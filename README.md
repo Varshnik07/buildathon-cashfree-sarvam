@@ -4,6 +4,11 @@ The brain behind the **Relay** voice agent: cleans a borrower book, ranks who to
 enforces the calling rules, learns from calls (**Sarvam**) and payments (**Cashfree**), and shows the call list
 re-forming live.
 
+## Demo
+
+- **Walkthrough video:** [`docs/demo/kural-launch-walkthrough.mp4`](docs/demo/kural-launch-walkthrough.mp4) (opens and plays on GitHub)
+- **Presentation:** coming soon in `docs/demo/`
+
 | File | What it is |
 |---|---|
 | `src/rank.js` | **Algorithm slot**: weights, score, groups, 10% random checks, fairness test, call rules |
