@@ -71,7 +71,7 @@ Relay agent ──POST /api/relay/outcome─────▶ our server        (w
      "last_outcome": { "outcome": "promise", "promiseDate": "2026-11-20" }
    }
    ```
-   Map `customer.phone` to the number to dial and `customer.language` to the call language.
+   Map `customer.language` to the conversation language and pass `account_id` through to every HTTP action.
 5. **Paste the prompt** from `AGENT-RULES.md` section 3 into the agent. Have a Tamil speaker read it once.
 6. **Add three HTTP actions** (base = `PUBLIC_URL`, header `content-type: application/json`):
 
@@ -89,17 +89,14 @@ Relay agent ──POST /api/relay/outcome─────▶ our server        (w
    `outcome` ∈ `agreed_to_pay, promise, partial, paid_claim, hardship, refused, no_answer, callback`.
    If Relay can only send the **transcript**, send just `account_id` + `transcript` — our server reads it with
    Sarvam (keyword fallback) and works out the outcome and promise date.
-7. **Test without a phone first.** From a terminal:
+7. **Test the trigger from a terminal:**
    ```bash
    curl -X POST "$RELAY_WEBHOOK_URL" -H 'content-type: application/json' \
-     -d '{"event":"call_request","account_id":"L-20455","amount_due":1200,"part_payment_floor":300,"customer":{"name":"Fathima Begum","phone":"<YOUR PHONE>","language":"ta-IN"},"disclosure":{"ta":"இந்த அழைப்பு பதிவு செய்யப்படுகிறது.","en":"This call is recorded."},"why_now":["Paid on time 6 of last 6"]}'
+     -d '{"event":"call_request","account_id":"L-20455","amount_due":1200,"part_payment_floor":300,"customer":{"name":"Fathima Begum","phone":"9999999999","language":"ta-IN"},"disclosure":{"ta":"இந்த அழைப்பு பதிவு செய்யப்படுகிறது.","en":"This call is recorded."},"why_now":["Paid on time 6 of last 6"]}'
    ```
    Then **Test flow** on the canvas → check **Runs** → check the app's **Live activity** panel for the outcome.
-8. **Use real demo numbers.** Sample borrowers all have `9999999999`. Before the demo, set the phone of the
-   borrower you will call live to a teammate's / judge's phone: edit `data/sample-accounts.json` (and copy it to
-   `public/sample-accounts.json`), then **Reset demo** in the app.
-9. **Full rehearsal ×3:** app → **Call** on a borrower → phone rings in Tamil → say "I can pay only half" →
-   link is created → pay it (Cashfree sandbox) → app shows **Part paid** and the row moves.
+8. **Full rehearsal ×3:** app → **Call** on a borrower → the agent runs in Tamil → answer "I can pay only half" →
+   a part-payment link is created → pay it (Cashfree sandbox) → app shows **Part paid** and the row moves.
 
 ## 4. Rules the agent must follow (from the problem statement's red lines)
 
@@ -121,7 +118,7 @@ Relay agent ──POST /api/relay/outcome─────▶ our server        (w
 ## 6. Definition of done
 
 - [ ] `RELAY_WEBHOOK_URL` and `PUBLIC_URL` set; sidebar shows **Relay connected**.
-- [ ] Clicking **Call** in the app rings a real phone and the agent speaks Tamil with the recording disclosure.
+- [ ] Clicking **Call** in the app triggers the agent, which speaks Tamil with the recording disclosure.
 - [ ] The agent creates a part-payment link through our endpoint during or after the call.
 - [ ] Every call ends with a POST to `/api/relay/outcome`; it appears in **Live activity** and the list re-forms.
 - [ ] One promise ("salary 5th-ku varum") lands under **Promised later** with the right date.
