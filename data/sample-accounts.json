@@ -1,0 +1,9 @@
+{
+  "accounts": [
+    { "id": "A1001", "name": "Selvi", "phone": "9999999999", "language": "ta-IN", "amountDue": 2499, "dueDate": "2026-11-10", "context": { "onTimeLast6": 5 } },
+    { "id": "A1002", "name": "Ravi", "phone": "9999999999", "language": "ta-IN", "amountDue": 4800, "dueDate": "2026-10-28", "context": { "onTimeLast6": 2 } },
+    { "id": "A1003", "name": "Fathima", "phone": "9999999999", "language": "ta-IN", "amountDue": 1200, "dueDate": "2026-11-15", "context": { "onTimeLast6": 6 } },
+    { "id": "A1004", "name": "Senthil", "phone": "9999999999", "language": "ta-IN", "amountDue": 7350, "dueDate": "2026-09-30", "context": { "onTimeLast6": 0 } },
+    { "id": "A1005", "name": "Meenakshi", "phone": "9999999999", "language": "ta-IN", "amountDue": 3100, "dueDate": "2026-11-05", "context": { "onTimeLast6": 4 } }
+  ]
+}

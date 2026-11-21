@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Collections Console</title>
+<style>
+  :root { --ink:#16211E; --muted:#5b6965; --line:#dbe3e0; --bg:#f5f8f7; --ok:#1e7a4c; --warn:#9a6200; --bad:#b03a2e; --accent:#1d5e86; }
+  body { margin:0; font:14px/1.5 system-ui, sans-serif; color:var(--ink); background:var(--bg); padding:20px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
+  button { font:inherit; padding:6px 12px; border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  #health span { padding:2px 8px; border-radius:99px; margin-right:6px; font-size:12px; }
+  .on { background:#e2f3ea; color:var(--ok); } .off { background:#f9e5e2; color:var(--bad); }
+  table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); background:#eef3f1; }
+  .st { font-weight:600; } .PAID { color:var(--ok); } .PARTIALLY_PAID { color:var(--warn); } .EXPIRED, .CANCELLED { color:var(--bad); }
+  pre { background:#fff; border:1px solid var(--line); padding:10px; max-height:260px; overflow:auto; font-size:12px; }
+</style>
+</head>
+<body>
+  <h1>Collections Console</h1>
+  <div id="health"></div>
+  <div class="bar">
+    <button id="load">Load sample accounts</button>
+    <button id="refresh">Refresh</button>
+  </div>
+  <table>
+    <thead><tr><th>Account</th><th>Name</th><th>Due</th><th>Last outcome</th><th>Payment</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <h3>Event log</h3>
+  <pre id="events"></pre>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+async function health() {
+  const h = await (await fetch('/health')).json();
+  $('#health').innerHTML = ['sarvam', 'cashfree', 'relayWebhook']
+    .map((k) => `<span class="${h[k] ? 'on' : 'off'}">${k}</span>`).join('') +
+    `<small>public: ${esc(h.publicUrl || 'not set')}</small>`;
+}
+
+async function render() {
+  const accounts = await (await fetch('/api/accounts')).json();
+  $('#rows').innerHTML = accounts.map((a) => `
+    <tr>
+      <td>${esc(a.id)}</td><td>${esc(a.name)}</td><td>₹${esc(a.amountDue)}</td>
+      <td>${a.lastOutcome ? esc(a.lastOutcome.outcome) + (a.lastOutcome.promiseDate ? ' · ' + esc(a.lastOutcome.promiseDate) : '') : '—'}</td>
+      <td>${a.payment ? `<span class="st ${esc(a.payment.status)}">${esc(a.payment.status)}</span> ₹${esc(a.payment.paid)}/${esc(a.payment.amount)} <a href="${esc(a.payment.url)}" target="_blank">link</a>` : '—'}</td>
+      <td><button data-call="${esc(a.id)}">Call</button> <button data-link="${esc(a.id)}">Link</button></td>
+    </tr>`).join('');
+  const events = await (await fetch('/api/events')).json();
+  $('#events').textContent = events.slice(-30).reverse().map((e) => `${e.at}  ${e.type}  ${e.accountId || ''}  ${JSON.stringify(e.data)}`).join('\n');
+}
+
+document.addEventListener('click', async (e) => {
+  const call = e.target.dataset.call, link = e.target.dataset.link;
+  if (call) await fetch(`/api/accounts/${call}/call`, { method: 'POST' });
+  if (link) await fetch('/api/relay/payment-link', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ account_id: link }) });
+  if (call || link) render();
+});
+$('#load').onclick = async () => {
+  const sample = await (await fetch('/sample-accounts.json')).json();
+  await fetch('/api/accounts/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(sample) });
+  render();
+};
+$('#refresh').onclick = render;
+health(); render(); setInterval(render, 5000);
+</script>
+</body>
+</html>
