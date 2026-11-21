@@ -6,6 +6,7 @@
 //   Cashfree ──POST──▶ /webhooks/cashfree      (link PAID / PARTIALLY_PAID / payment FAILED)
 import fs from 'node:fs';
 import express from 'express';
+import { mountBrowserVoice } from './browser-voice.js';
 import multer from 'multer';
 import * as sarvam from './sarvam.js';
 import * as cashfree from './cashfree.js';
@@ -141,6 +142,8 @@ app.get('/api/queue', (_req, res) => {
 });
 
 app.get('/api/fairness', (_req, res) => res.json(fairnessCheck(store.listAccounts())));
+
+mountBrowserVoice(app, { store, callPolicy, remaining, partFloor });
 
 // ---------- Start an AI call (our app → Relay) ----------
 app.post('/api/accounts/:id/call', wrap(async (req, res) => {

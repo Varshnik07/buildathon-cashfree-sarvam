@@ -210,7 +210,9 @@ table.t tr:last-child td{border-bottom:0}
 @media (max-width:520px){.workspace{padding:14px 16px 32px}.topbar{margin:-14px -16px 14px;padding:12px 16px;flex-wrap:wrap}.topbar .grow{flex-basis:100%}.kpis{grid-template-columns:1fr 1fr}.kpi .v{font-size:22px}.tiles,.lists{grid-template-columns:1fr}.fields{columns:1}.tabs{overflow-x:auto;max-width:100%}.tab{white-space:nowrap}.toolbar .hint{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
-</head>
+<style>
+.voice-panel{width:min(640px,90vw);max-height:85vh;overflow:auto;border:0;border-radius:24px;padding:28px;background:#faf9f5;color:#222;box-shadow:0 20px 90px #0005}.voice-panel::backdrop{background:#0008}.voice-panel h2{margin-top:0}.voice-panel button,.voice-panel select,.voice-panel input{font:inherit;padding:10px 14px;border:1px solid #ccc;border-radius:12px}.voice-actions{display:flex;gap:12px;margin:20px 0}.voice-panel [data-end]{background:#222;color:#ffba20}.voice-transcript{max-height:240px;overflow:auto;background:white;border-radius:12px;padding:12px;min-height:70px}.voice-panel label{display:block;margin:12px 0}.voice-panel [data-status]{font-weight:700}.voice-panel button:disabled{opacity:.5}.voice-active #callNext,.voice-active [data-call]{pointer-events:none;opacity:.5}
+</style></head>
 <body>
 <div class="app">
   <aside class="sidebar">
@@ -337,7 +339,9 @@ table.t tr:last-child td{border-bottom:0}
 <aside class="drawer" id="drawer" aria-label="Borrower details"></aside>
 <div class="toast" id="toast" role="status"></div>
 
-<script>
+<script type="module">
+import { createVoicePanel } from "/browser-voice.js";
+const startBrowserVoice = createVoicePanel({ refresh: () => refresh() });
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
@@ -621,14 +625,12 @@ document.addEventListener('click', async (e) => {
     if (t.dataset.filter) { filter = t.dataset.filter; return refresh(); }
     if (t.dataset.menu) { openMenu = openMenu === t.dataset.menu ? null : t.dataset.menu; return refresh(); }
     if (t.dataset.sim) { openMenu = null; const r = await api(`/api/demo/${encodeURIComponent(t.dataset.id)}/simulate`, { type: t.dataset.sim }); toast(r.summary); return refresh(); }
-    if (t.dataset.call) { await api(`/api/accounts/${encodeURIComponent(t.dataset.call)}/call`, {}); toast('AI agent is calling in Tamil'); return refresh(); }
+    if (t.dataset.call) { return startBrowserVoice(t.dataset.call); }
     if (t.dataset.link) { const r = await api('/api/relay/payment-link', { account_id: t.dataset.link, min_partial: true }); toast('Payment link created (part payment allowed)'); if (r.link_url) window.open(r.link_url, '_blank', 'noopener'); return refresh(); }
     if (t.id === 'callNext') {
       const next = queue.find((a) => a.rank.bucket === 'call');
       if (!next) return toast('Nobody left for the AI to call');
-      await api(`/api/accounts/${encodeURIComponent(next.id)}/call`, {});
-      toast(`AI agent is calling ${next.name}`);
-      return refresh();
+      return startBrowserVoice(next.id);
     }
     if (t.id === 'reset') { await api('/api/reset', {}); moved = {}; prevPos = {}; filter = 'all'; toast('Demo reset to the sample book'); setView('queue'); return refresh(); }
   } catch (err) { toast(err.message); refresh(); }

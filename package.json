@@ -8,10 +8,17 @@
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
     "proof": "uv run -q --with pandas --with xlrd python scripts/proof/convert_uci.py \"../datasets/default of credit card clients.xls\" ../datasets/uci-accounts.json && node scripts/proof/backtest.js ../datasets/uci-accounts.json",
     "test:sarvam": "node --env-file=.env scripts/test-sarvam.js",
-    "test:cashfree": "node --env-file=.env scripts/test-cashfree.js"
+    "test:cashfree": "node --env-file=.env scripts/test-cashfree.js",
+    "build:voice": "node scripts/build-voice.js",
+    "prestart": "npm run build:voice",
+    "predev": "npm run build:voice"
   },
   "dependencies": {
     "express": "^5.1.0",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "sarvam-conv-ai-sdk": "^0.0.42"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
