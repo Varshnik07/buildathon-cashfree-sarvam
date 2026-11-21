@@ -737,7 +737,7 @@ setView(location.hash.slice(1) || 'queue');
 // ---------- Live Tamil call with "Priya" (Sarvam speech-to-text → chat → voice) ----------
 const QUICK = [
   { say: 'சரி, இப்போவே full-ஆ கட்டிடறேன்', en: 'Okay, I will pay in full now' },
-  { say: 'பாதி இப்போ கட்டறேன், மீதி salary 5th-க்கு வரும்', en: 'Half now, rest after salary on the 5th' },
+  { say: 'Salary 5th-க்கு வரும், அப்போ கட்டிடறேன்', en: 'Salary comes on the 5th, I will pay then' },
   { say: 'நான் already branch-ல கட்டிட்டேன்', en: 'I already paid at the branch' },
   { say: 'அம்மா hospital-ல இருக்காங்க, இப்போ முடியாது', en: 'Mother is in hospital, I cannot pay now' },
 ];
@@ -781,8 +781,8 @@ async function customerSays(text, en) {
   catch (err) { state(err.message); showReplies(true); return; }
   if (t.action === 'send_link' && !call.linkSent) {
     call.linkSent = true;
-    api('/api/relay/payment-link', { account_id: call.a.id, min_partial: true })
-      .then((l) => bubble('agent', `Payment link sent: ${l.link_url}`, 'Cashfree sandbox link, part payment allowed'))
+    api('/api/relay/payment-link', { account_id: call.a.id, min_partial: false })
+      .then((l) => bubble('agent', `Payment link sent: ${l.link_url}`, 'Cashfree sandbox link, full amount'))
       .catch((err) => toast(err.message));
   }
   if (t.outcome) call.outcome = t;
