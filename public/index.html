@@ -781,8 +781,8 @@ async function customerSays(text, en) {
   catch (err) { state(err.message); showReplies(true); return; }
   if (t.action === 'send_link' && !call.linkSent) {
     call.linkSent = true;
-    api('/api/relay/payment-link', { account_id: call.a.id, min_partial: false })
-      .then((l) => bubble('agent', `Payment link sent: ${l.link_url}`, 'Cashfree sandbox link, full amount'))
+    api('/api/relay/payment-link', { account_id: call.a.id, min_partial: t.part_min || false })
+      .then((l) => bubble('agent', `Payment link sent: ${l.link_url}`, t.part_min ? `Cashfree sandbox link, part payment from ₹${t.part_min.toLocaleString('en-IN')} (75%)` : 'Cashfree sandbox link, full amount'))
       .catch((err) => toast(err.message));
   }
   if (t.outcome) call.outcome = t;
@@ -837,7 +837,7 @@ async function openCall(a) {
   const due = a.amountDue - Number(a.payment?.paid || 0);
   const first = String(a.name).split(' ')[0];
   call = { a, history: [], ended: false };
-  $('#callcard').innerHTML = `<h3>📞 ${esc(a.name)}</h3><div class="meta">Priya · collections team · Tamil · ${inr(due)} due · call recorded</div>
+  $('#callcard').innerHTML = `<h3>📞 ${esc(a.name)}</h3><div class="meta">Priya · collections team · Tamil · ${inr(due)} due · call #${Math.max(1, (queue.find((x) => x.id === a.id)?.attempts || a.attempts || 0) + 1)} · recorded</div>
     <div id="callLog"></div>
     <div class="replies" id="replies" style="display:none">
       <button class="mic" id="mic">🎙 Hold to talk (Tamil / Tanglish)</button>

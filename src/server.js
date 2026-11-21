@@ -348,20 +348,23 @@ app.post('/api/demo/:id/simulate', (req, res) => {
 
 
 // ---------- Live call: one conversation turn with "Priya" (Sarvam chat) ----------
-const PRIYA = (a, due, floor) => `You are Priya, a friendly person from the lender's collections team, on a phone call with ${a.name}.
+const PRIYA = (a, due, part) => `You are Priya, a friendly person from the lender's collections team, on a phone call with ${a.name}.
 Speak casual, warm, spoken Tamil the way people talk on the phone (Tamil script; English words like EMI, link, UPI are fine).
 Keep every reply SHORT: at most 2 short sentences, under 25 words. Sound natural and human: no lists, no formal Tamil. Always fill reply_en.
 Do not say you are an AI or a bot. If the customer directly asks whether you are a robot or AI, answer honestly that you are the lender's automated assistant.
 Facts (use only these): amount due Rs ${due}; a promise date can be at most 7 days away.
 Goal: get the full amount paid today via the link, or a firm date (within 7 days) to pay the full amount.
-Do NOT offer or suggest part payment, minimum amounts or splitting the amount. If the customer offers to pay part,
-thank them, say the link is for the full amount, and ask for a date when they can pay it in full.
+${part
+    ? `This is call number ${part.callNo} with this customer. Ask for the full amount first. Only if they say they cannot pay it all,
+you may offer: pay at least Rs ${part.min} (75%) today via the link, and the rest by a firm date within 7 days. Never go below Rs ${part.min}.`
+    : `This is the first call. Do NOT offer or suggest part payment, minimum amounts or splitting the amount. If the customer offers to pay part,
+thank them, say the link is for the full amount, and ask for a date when they can pay it in full.`}
 Rules: never threaten, shame or pressure; never ask for OTP, PIN or card details; payment only via the link.
 If they say they already paid: ask for the UTR / transaction number, do not ask for money again.
 If they mention hardship (hospital, job loss, death): be kind, say someone from the team will call to help, and end.
 Reply with ONLY JSON:
 {"reply_ta":"what you say in Tamil","reply_en":"English meaning","action":"none|send_link|end",
- "outcome":null or one of "agreed_to_pay","promise","paid_claim","hardship","refused","callback",
+ "outcome":null or one of "agreed_to_pay","partial","promise","paid_claim","hardship","refused","callback",
  "promise_date":"YYYY-MM-DD or null","amount":number or null}
 Use action "send_link" when they agree to pay something now; "end" when the conversation is done (set outcome).`;
 
@@ -370,11 +373,14 @@ app.post('/api/call/turn', wrap(async (req, res) => {
   if (!a) return res.status(404).json({ error: 'not found' });
   const due = remaining(a);
   const history = (req.body.history || []).slice(-10).map((h) => ({ role: h.role === 'agent' ? 'assistant' : 'user', content: h.text }));
-  const raw = await sarvam.chat([{ role: 'system', content: `${PRIYA(a, due, partFloor(a))}\nToday is ${new Date().toISOString().slice(0, 10)}.` }, ...history], { temperature: 0.5, maxTokens: 600 });
+  // Part payment only from the 2nd call on, and at least 75% of what's due.
+  const callNo = Math.max(1, a.attempts || 0);
+  const part = callNo >= 2 ? { callNo, min: Math.round((due * 0.75) / 100) * 100 } : null;
+  const raw = await sarvam.chat([{ role: 'system', content: `${PRIYA(a, due, part)}\nToday is ${new Date().toISOString().slice(0, 10)}.` }, ...history], { temperature: 0.5, maxTokens: 600 });
   const m = raw.replace(/<think>[\s\S]*?<\/think>/g, '').match(/\{[\s\S]*\}/);
   let out;
   try { out = JSON.parse(m[0]); } catch { out = { reply_ta: raw.trim().slice(0, 300), reply_en: '', action: 'none', outcome: null }; }
-  res.json(out);
+  res.json({ ...out, call_no: callNo, part_min: part?.min || null });
 }));
 
 // ---------- Sarvam helpers (handy for testing from Postman / Relay) ----------
