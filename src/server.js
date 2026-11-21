@@ -211,11 +211,13 @@ app.get('/api/relay/context/:id', (req, res) => {
 });
 
 app.post('/api/relay/payment-link', wrap(async (req, res) => {
-  const { amount, min_partial } = req.body;
+  const { amount, min_partial } = req.body || {};
   const a = store.getAccount(resolveId(req.body.account_id));
   if (!a) return res.status(404).json({ error: 'not found' });
   const linkAmount = Number(amount || remaining(a));
-  const minPartial = min_partial === true ? partFloor(a) : Number(min_partial) || undefined;
+  // No body from Relay → part payment allowed by default (min_partial: false turns it off).
+  const minPartial = min_partial === false || min_partial === 'false' ? undefined
+    : min_partial === undefined || min_partial === true || min_partial === 'true' ? partFloor(a) : Number(min_partial) || partFloor(a);
   const linkId = `${a.id}-${Date.now()}`;
   const link = await cashfree.createPaymentLink({
     linkId, amount: linkAmount, purpose: `Dues for ${a.id}`,
