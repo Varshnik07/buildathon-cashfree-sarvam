@@ -30,11 +30,11 @@ export async function speechToText(buffer, filename = 'audio.wav', { languageCod
 }
 
 // Text-to-speech (Bulbul). Returns a WAV Buffer.
-export async function textToSpeech(text, { languageCode = 'ta-IN', speaker = 'kavitha', model = 'bulbul:v3', pace = 1 } = {}) {
+export async function textToSpeech(text, { languageCode = 'ta-IN', speaker = 'neha', model = 'bulbul:v3', pace = 1.15, sampleRate = 22050 } = {}) {
   const out = await call('/text-to-speech', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text, language_code: languageCode, speaker, model, pace }),
+    body: JSON.stringify({ text, language_code: languageCode, speaker, model, pace, speech_sample_rate: sampleRate }),
   });
   return Buffer.from(out.audios[0], 'base64');
 }

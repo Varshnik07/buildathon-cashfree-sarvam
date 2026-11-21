@@ -213,7 +213,7 @@ table.h th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:va
 .bub small{display:block;color:var(--char-muted);font-size:11px;margin-top:3px} .bub.cust small{color:#5a4100}
 .replies{display:grid;gap:6px;margin-top:12px}
 .replies button{background:var(--char-2);border:1px solid var(--char-line);color:var(--char-text);border-radius:12px;padding:9px 12px;text-align:left;font-size:13px}
-.replies .mic{background:var(--gold);color:var(--char);border-color:var(--gold);font-weight:600;text-align:center;padding:12px}
+.replies .mic{border-radius:12px;background:var(--gold);color:var(--char);border-color:var(--gold);font-weight:600;text-align:center;padding:12px}
 .replies .mic.on{background:#E0705F;border-color:#E0705F;color:#fff}
 .replies button:hover{border-color:var(--gold);color:var(--gold)}
 .callend{margin-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--char-muted)}
@@ -696,7 +696,7 @@ document.addEventListener('click', async (e) => {
     if (t.dataset.filter) { filter = t.dataset.filter; return refresh(); }
     if (t.dataset.menu) { openMenu = openMenu === t.dataset.menu ? null : t.dataset.menu; return refresh(); }
     if (t.dataset.sim) { openMenu = null; const r = await api(`/api/demo/${encodeURIComponent(t.dataset.id)}/simulate`, { type: t.dataset.sim }); toast(r.summary); return refresh(); }
-    if (t.id === 'endCall') { if (call && !call.saved && call.history.length > 1) await finishCall(); $('#callbox').hidden = true; return refresh(); }
+    if (t.id === 'endCall') { stopListening(); if (call && !call.saved && call.history.length > 1) await finishCall(); $('#callbox').hidden = true; return refresh(); }
     if (t.dataset.call) {
       const acc = queue.find((x) => x.id === t.dataset.call) || await api(`/api/accounts/${encodeURIComponent(t.dataset.call)}`);
       try { await api(`/api/accounts/${encodeURIComponent(t.dataset.call)}/call`, {}); }
@@ -744,7 +744,7 @@ const QUICK = [
 let call = null;
 async function speak(text) {
   try {
-    const r = await fetch('/api/sarvam/tts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, language_code: 'ta-IN', speaker: 'priya', pace: 1.2 }) });
+    const r = await fetch('/api/sarvam/tts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, language_code: 'ta-IN', speaker: 'neha', pace: 1.15 }) });
     if (!r.ok) return;
     const a = new Audio(URL.createObjectURL(await r.blob()));
     await new Promise((res) => { a.onended = res; a.onerror = res; a.play().catch(res); });
@@ -767,8 +767,13 @@ async function priyaSays(ta, en) {
   call.history.push({ role: 'agent', text: ta });
   bubble('agent', ta, en);
   state('Priya speaking…');
+  if (vad) vad.paused = true;
   await speak(ta);
-  if (!call.ended) { state('Your turn: hold the mic, or tap a reply'); showReplies(true); }
+  if (!call.ended) {
+    showReplies(true);
+    state('Listening… just speak');
+    if (vad) vad.paused = false; else startListening();
+  } else stopListening();
 }
 async function customerSays(text, en) {
   if (!call || call.ended) return;
@@ -803,35 +808,66 @@ async function finishCall() {
   } catch (err) { state(err.message); }
   refresh();
 }
-// Hold-to-talk: record with the mic, Sarvam Saaras turns Tamil / Tanglish speech into text.
-let rec = null, chunks = [];
-async function micDown() {
-  if (!call || call.ended) return;
+// Hands-free: listen with the mic, start recording when the customer speaks, stop after a short pause.
+let vad = null;
+async function startListening() {
+  if (!call || call.ended || vad) return;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    chunks = [];
-    rec = new MediaRecorder(stream);
-    rec.ondataavailable = (e) => chunks.push(e.data);
-    rec.onstop = async () => {
-      stream.getTracks().forEach((tr) => tr.stop());
-      const fd = new FormData();
-      fd.append('file', new Blob(chunks, { type: 'audio/webm' }), 'reply.webm');
-      fd.append('language_code', 'ta-IN');
-      state('Listening…');
-      try {
-        const r = await api('/api/sarvam/stt', fd);
-        if (r.transcript?.trim()) customerSays(r.transcript.trim());
-        else state("Didn't catch that. Hold the mic and try again");
-      } catch (err) { state(err.message); }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    const ctx = new AudioContext();
+    const an = ctx.createAnalyser();
+    an.fftSize = 1024;
+    ctx.createMediaStreamSource(stream).connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    vad = { stream, ctx, rec: null, chunks: [], talking: false, lastVoice: 0, paused: false };
+    const tick = () => {
+      if (!vad) return;
+      an.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) sum += (v - 128) ** 2;
+      const level = Math.sqrt(sum / buf.length);
+      const now = performance.now();
+      if (!vad.paused && level > 9) {
+        vad.lastVoice = now;
+        if (!vad.talking) {
+          vad.talking = true;
+          vad.chunks = [];
+          vad.rec = new MediaRecorder(stream);
+          vad.rec.ondataavailable = (e) => vad && vad.chunks.push(e.data);
+          vad.rec.onstop = () => sendSpeech(vad.chunks);
+          vad.rec.start();
+          state('Listening…');
+          $('#mic')?.classList.add('on');
+        }
+      }
+      if (vad.talking && now - vad.lastVoice > 700) {
+        vad.talking = false;
+        vad.paused = true;
+        vad.rec.stop();
+        $('#mic')?.classList.remove('on');
+      }
+      requestAnimationFrame(tick);
     };
-    rec.start();
-    $('#mic').classList.add('on');
-    state('Recording… release to send');
+    tick();
   } catch { state('Mic not available. Tap a reply instead'); }
 }
-function micUp() {
-  if (rec && rec.state === 'recording') rec.stop();
-  $('#mic')?.classList.remove('on');
+function stopListening() {
+  if (!vad) return;
+  vad.stream.getTracks().forEach((t) => t.stop());
+  vad.ctx.close();
+  vad = null;
+}
+async function sendSpeech(chunks) {
+  const fd = new FormData();
+  fd.append('file', new Blob(chunks, { type: 'audio/webm' }), 'reply.webm');
+  fd.append('language_code', 'ta-IN');
+  state('Got it…');
+  try {
+    const r = await api('/api/sarvam/stt', fd);
+    if (r.transcript?.trim()) return customerSays(r.transcript.trim());
+  } catch { /* fall through */ }
+  if (vad) vad.paused = false;
+  state('Listening…');
 }
 async function openCall(a) {
   const due = a.amountDue - Number(a.payment?.paid || 0);
@@ -840,14 +876,11 @@ async function openCall(a) {
   $('#callcard').innerHTML = `<h3>📞 ${esc(a.name)}</h3><div class="meta">Priya · collections team · Tamil · ${inr(due)} due · call #${Math.max(1, (queue.find((x) => x.id === a.id)?.attempts || a.attempts || 0) + 1)} · recorded</div>
     <div id="callLog"></div>
     <div class="replies" id="replies" style="display:none">
-      <button class="mic" id="mic">🎙 Hold to talk (Tamil / Tanglish)</button>
+      <div class="mic" id="mic">🎙 Listening: just speak in Tamil / Tanglish</div>
       ${QUICK.map((r, i) => `<button data-quick="${i}">“${esc(r.say)}” <span style="color:var(--char-muted)">· ${esc(r.en)}</span></button>`).join('')}
     </div>
     <div class="callend"><span id="callState">Ringing…</span><button class="btn ghost" id="endCall">End call</button></div>`;
   $('#callbox').hidden = false;
-  const mic = $('#mic');
-  ['mousedown', 'touchstart'].forEach((ev) => mic.addEventListener(ev, (e) => { e.preventDefault(); micDown(); }));
-  ['mouseup', 'mouseleave', 'touchend'].forEach((ev) => mic.addEventListener(ev, micUp));
   $('#replies').addEventListener('click', (e) => { const b = e.target.closest('[data-quick]'); if (b) customerSays(QUICK[b.dataset.quick].say, QUICK[b.dataset.quick].en); });
   await priyaSays(
     `ஹலோ ${first}, நான் பிரியா பேசுறேன், loan team-லேருந்து. இந்த call record ஆகுது. உங்க EMI ${due} ரூபாய் pending-ஆ இருக்கு. இன்னைக்கு கட்ட முடியுமா?`,
