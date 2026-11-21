@@ -762,6 +762,8 @@ function showReplies(on) {
   $('#replies').style.display = on ? 'grid' : 'none';
 }
 async function priyaSays(ta, en) {
+  const clean = (x) => String(x || '').replace(/\s*\[link\]:?/gi, '').replace(/\s+/g, ' ').trim();
+  ta = clean(ta); en = clean(en);
   call.history.push({ role: 'agent', text: ta });
   bubble('agent', ta, en);
   state('Priya speaking…');
