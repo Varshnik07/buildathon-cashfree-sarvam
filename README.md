@@ -7,7 +7,9 @@ re-forming live.
 ## Demo
 
 - **Walkthrough video:** [`docs/demo/kural-launch-walkthrough.mp4`](docs/demo/kural-launch-walkthrough.mp4) (opens and plays on GitHub)
-- **Presentation:** coming soon in `docs/demo/`
+- **Presentation:** [AI Voice Collections deck](https://claude.ai/artifact/HPgox3WNcVtdzYXfh9oZ3M)
+
+![The problem: collection today is manual, slow and hard to scale](docs/demo/slide-2-problem.png)
 
 | File | What it is |
 |---|---|
