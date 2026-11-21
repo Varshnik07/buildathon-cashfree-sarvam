@@ -376,7 +376,7 @@ app.post('/api/call/turn', wrap(async (req, res) => {
   // Part payment only from the 2nd call on, and at least 75% of what's due.
   const callNo = Math.max(1, a.attempts || 0);
   const part = callNo >= 2 ? { callNo, min: Math.round((due * 0.75) / 100) * 100 } : null;
-  const raw = await sarvam.chat([{ role: 'system', content: `${PRIYA(a, due, part)}\nToday is ${new Date().toISOString().slice(0, 10)}.` }, ...history], { model: 'sarvam-105b-conversations', temperature: 0.5, maxTokens: 300 });
+  const raw = await sarvam.chat([{ role: 'system', content: `${PRIYA(a, due, part)}\nToday is ${new Date().toISOString().slice(0, 10)}.` }, ...history], { temperature: 0.5, maxTokens: 300 });
   const m = raw.replace(/<think>[\s\S]*?<\/think>/g, '').match(/\{[\s\S]*\}/);
   let out;
   try { out = JSON.parse(m[0]); } catch { out = { reply_ta: raw.trim().slice(0, 300), reply_en: '', action: 'none', outcome: null }; }
