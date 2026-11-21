@@ -234,8 +234,10 @@ app.post('/api/relay/payment-link', wrap(async (req, res) => {
 // The agent reports the call. If it only sends a transcript, we read it with Sarvam.
 // outcome: agreed_to_pay | promise | partial | paid_claim | hardship | refused | no_answer | callback
 app.post('/api/relay/outcome', wrap(async (req, res) => {
-  const { transcript, note } = req.body || {};
-  const a = store.getAccount(resolveId(req.body?.account_id));
+  // Accepts JSON body or query params (Relay's JSON editor can be fussy).
+  req.body = { ...req.query, ...(req.body || {}) };
+  const { transcript, note } = req.body;
+  const a = store.getAccount(resolveId(req.body.account_id));
   if (!a) return res.status(404).json({ error: 'not found' });
   let o = { outcome: req.body.outcome, promiseDate: req.body.promise_date, amount: req.body.amount, reference: req.body.reference, note };
   let learned = null;
