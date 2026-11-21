@@ -18,6 +18,13 @@ import * as rankingAgent from './rankingAgent.js';
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 let lastImport = null;
+// The borrower we most recently asked Relay to call. Lets Relay use /current instead of a template variable.
+let currentCallId = null;
+// Falls back to the #1 borrower on the AI call list so a Relay test works before anyone clicks Call.
+// Unknown IDs (e.g. a stale ID still saved in the live Relay agent) also fall back to the current call.
+const resolveId = (id) => (id && id !== 'current' && !/\{\{/.test(id) && store.getAccount(id)
+  ? id
+  : currentCallId || rankAccounts(store.listAccounts()).find((a) => a.rank.bucket === 'call')?.id);
 
 // Keep the raw body for Cashfree signature checks.
 app.use(express.json({ limit: '20mb', verify: (req, _res, buf) => { req.rawBody = buf.toString(); } }));
@@ -177,6 +184,7 @@ app.post('/api/accounts/:id/call', wrap(async (req, res) => {
     why_now: rank.reasons.slice(0, 3),
     last_outcome: a.lastOutcome || null,
   };
+  currentCallId = a.id;
   const r = await fetch(process.env.RELAY_WEBHOOK_URL, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
   });
@@ -192,8 +200,8 @@ app.post('/api/accounts/:id/call', wrap(async (req, res) => {
 
 // ---------- Endpoints for Relay HTTP actions ----------
 app.get('/api/relay/context/:id', (req, res) => {
-  const a = store.getAccount(req.params.id);
-  if (!a) return res.status(404).json({ error: 'not found' });
+  const a = store.getAccount(resolveId(req.params.id));
+  if (!a) return res.status(404).json({ error: 'not found', hint: 'click Call in the app first, or pass a real account_id' });
   res.json({
     account_id: a.id, name: a.name, language: a.language || 'ta-IN',
     amount_due: remaining(a), part_payment_floor: partFloor(a), due_date: a.dueDate || null,
@@ -203,8 +211,8 @@ app.get('/api/relay/context/:id', (req, res) => {
 });
 
 app.post('/api/relay/payment-link', wrap(async (req, res) => {
-  const { account_id, amount, min_partial } = req.body;
-  const a = store.getAccount(account_id);
+  const { amount, min_partial } = req.body;
+  const a = store.getAccount(resolveId(req.body.account_id));
   if (!a) return res.status(404).json({ error: 'not found' });
   const linkAmount = Number(amount || remaining(a));
   const minPartial = min_partial === true ? partFloor(a) : Number(min_partial) || undefined;
@@ -224,8 +232,8 @@ app.post('/api/relay/payment-link', wrap(async (req, res) => {
 // The agent reports the call. If it only sends a transcript, we read it with Sarvam.
 // outcome: agreed_to_pay | promise | partial | paid_claim | hardship | refused | no_answer | callback
 app.post('/api/relay/outcome', wrap(async (req, res) => {
-  const { account_id, transcript, note } = req.body;
-  const a = store.getAccount(account_id);
+  const { transcript, note } = req.body;
+  const a = store.getAccount(resolveId(req.body.account_id));
   if (!a) return res.status(404).json({ error: 'not found' });
   let o = { outcome: req.body.outcome, promiseDate: req.body.promise_date, amount: req.body.amount, reference: req.body.reference, note };
   let learned = null;
@@ -246,6 +254,12 @@ app.post('/api/relay/outcome', wrap(async (req, res) => {
   });
   res.json({ ok: true, outcome: o, learned, bucket: rank.bucket });
 }));
+
+app.post('/api/relay/current/:id', (req, res) => {
+  if (!store.getAccount(req.params.id)) return res.status(404).json({ error: 'not found' });
+  currentCallId = req.params.id;
+  res.json({ current: currentCallId });
+});
 
 app.post('/webhooks/relay', (req, res) => {
   store.logEvent('relay_webhook', req.body?.account_id || null, req.body);
