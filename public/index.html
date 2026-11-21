@@ -3,73 +3,324 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Collections Console</title>
+<title>Kural · Who will pay first?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap">
 <style>
-  :root { --ink:#16211E; --muted:#5b6965; --line:#dbe3e0; --bg:#f5f8f7; --ok:#1e7a4c; --warn:#9a6200; --bad:#b03a2e; --accent:#1d5e86; }
-  body { margin:0; font:14px/1.5 system-ui, sans-serif; color:var(--ink); background:var(--bg); padding:20px; }
-  h1 { font-size:20px; margin:0 0 4px; }
-  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
-  button { font:inherit; padding:6px 12px; border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer; }
-  button:hover { border-color:var(--accent); }
-  #health span { padding:2px 8px; border-radius:99px; margin-right:6px; font-size:12px; }
-  .on { background:#e2f3ea; color:var(--ok); } .off { background:#f9e5e2; color:var(--bad); }
-  table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); }
-  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); background:#eef3f1; }
-  .st { font-weight:600; } .PAID { color:var(--ok); } .PARTIALLY_PAID { color:var(--warn); } .EXPIRED, .CANCELLED { color:var(--bad); }
-  pre { background:#fff; border:1px solid var(--line); padding:10px; max-height:260px; overflow:auto; font-size:12px; }
+:root{
+  --ground:#ECEBE8; --surface:#FAFAF8; --white:#FFFFFF; --ink:#1C1C1A; --muted:#6E6C66; --line:#E2E0DA;
+  --char:#1F1F1E; --char-2:#2A2A28; --char-line:#3A3936;
+  --gold:#FFB224; --gold-deep:#B87400; --gold-soft:#FFEFCF; --gold-glow:rgba(255,178,36,.28);
+  --ok:#1E8E5A; --ok-soft:#DFF3E8; --warn:#B26B00; --warn-soft:#FFF0D6;
+  --blue:#2F6FDB; --blue-soft:#E3ECFB; --violet:#7651CF; --violet-soft:#ECE6FA; --bad:#C2412F; --bad-soft:#FBE6E2;
+  --display:"Outfit",system-ui,sans-serif; --body:"DM Sans",system-ui,sans-serif;
+  --r-xl:28px; --r-lg:20px; --r-pill:999px;
+  --shadow:0 1px 0 rgba(0,0,0,.04),0 10px 30px -12px rgba(30,25,10,.18);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;padding:20px 24px 60px;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+button:focus-visible{outline:2px solid var(--gold-deep);outline-offset:2px}
+.shell{max-width:1240px;margin:0 auto}
+
+/* Floating pill nav */
+nav{position:sticky;top:12px;z-index:20;display:flex;align-items:center;gap:18px;background:rgba(250,250,248,.86);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.9);border-radius:var(--r-lg);padding:14px 16px 14px 26px;box-shadow:var(--shadow)}
+.brand{font-family:var(--display);font-size:24px;font-weight:400;letter-spacing:.01em}
+.brand b{font-weight:400;color:var(--gold-deep)}
+.rule{flex:1;height:1px;background:var(--line)}
+.navlinks{display:flex;gap:18px;font-size:14px}
+.navlinks a{color:var(--ink);text-decoration:none}
+.navlinks a:hover{color:var(--gold-deep)}
+.pill{display:inline-flex;align-items:center;gap:8px;border-radius:var(--r-pill);padding:9px 18px;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.pill.ghost{border:1px solid var(--line);background:var(--white)}
+.pill.dark{background:var(--char);color:var(--gold);box-shadow:0 6px 16px -6px rgba(0,0,0,.45)}
+.pill.dark:hover{background:#000}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;align-items:center;padding:56px 8px 36px;position:relative}
+.glow{position:absolute;left:-40px;top:10px;width:420px;height:260px;background:radial-gradient(closest-side,var(--gold-glow),transparent);pointer-events:none}
+.chip{position:relative;display:inline-flex;align-items:center;gap:8px;background:var(--surface);border-radius:var(--r-pill);padding:8px 18px;font-size:13px}
+.chip svg{width:16px;height:16px}
+h1{position:relative;font-family:var(--display);font-weight:300;font-size:clamp(44px,6vw,76px);line-height:1.02;letter-spacing:-.02em;margin:18px 0 14px}
+.sub{position:relative;font-size:18px;color:var(--ink);max-width:34ch}
+.sub b{font-weight:600}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stat{background:var(--surface);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow)}
+.stat .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.stat .v{font-family:var(--display);font-size:38px;font-weight:300;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.stat.feature{background:linear-gradient(140deg,var(--white) 30%,var(--gold-soft));}
+.stat.feature .v{color:var(--gold-deep)}
+
+/* Main grid */
+.main{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:20px;align-items:start}
+.card{background:linear-gradient(165deg,var(--white) 55%,#FFF6E4);border-radius:var(--r-xl);padding:26px 26px 18px;box-shadow:var(--shadow)}
+.card h2{font-family:var(--display);font-weight:400;font-size:28px;margin:0 0 4px;letter-spacing:-.01em}
+.card .lead{color:var(--muted);margin:0 0 18px}
+.cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+
+/* Queue */
+.group{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:16px 4px 8px;display:flex;align-items:center;gap:10px}
+.group::after{content:"";flex:1;height:1px;background:var(--line)}
+.row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--white);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-bottom:8px;position:relative;transition:box-shadow .3s,border-color .3s}
+.row.flash{border-color:var(--gold);box-shadow:0 0 0 4px var(--gold-glow)}
+.pos{font-family:var(--display);font-weight:300;font-size:28px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.who{min-width:0}
+.who .name{font-family:var(--display);font-size:19px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.who .meta{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.reason{font-size:14px;margin-top:6px;color:var(--ink)}
+.reason .more{color:var(--muted)}
+.tag{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:var(--r-pill)}
+.t-call{background:var(--gold-soft);color:var(--gold-deep)} .t-scheduled{background:var(--blue-soft);color:var(--blue)}
+.t-verify{background:var(--warn-soft);color:var(--warn)} .t-human{background:var(--violet-soft);color:var(--violet)}
+.t-done{background:var(--ok-soft);color:var(--ok)} .t-part{background:var(--warn-soft);color:var(--warn)}
+.move{font-size:12px;font-weight:600;color:var(--ok);background:var(--ok-soft);padding:2px 8px;border-radius:var(--r-pill)}
+.move.down{color:var(--bad);background:var(--bad-soft)}
+.right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.score{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+.bar{width:84px;height:6px;border-radius:6px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-deep));border-radius:6px}
+.acts{display:flex;gap:6px;position:relative}
+.btn{border-radius:var(--r-pill);padding:7px 14px;font-size:13px;font-weight:600}
+.btn.dark{background:var(--char);color:var(--gold)} .btn.dark:hover{background:#000}
+.btn.ghost{border:1px solid var(--line);background:var(--white)} .btn.ghost:hover{border-color:var(--gold-deep)}
+.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:10;background:var(--char);color:#EEE;border-radius:14px;padding:6px;min-width:180px;box-shadow:0 18px 40px -12px rgba(0,0,0,.5)}
+.menu button{display:block;width:100%;text-align:left;padding:8px 12px;border-radius:9px;font-size:13px}
+.menu button:hover{background:var(--char-2);color:var(--gold)}
+.menu .mh{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a978f;padding:6px 12px 4px}
+.empty{text-align:center;padding:48px 10px;color:var(--muted)}
+
+/* Side column */
+.side{display:grid;gap:20px;position:sticky;top:104px}
+.dark-card{background:var(--char);color:#ECEBE6;border-radius:var(--r-xl);padding:24px;box-shadow:var(--shadow)}
+.dark-card h2{font-family:var(--display);font-weight:400;font-size:24px;margin:0 0 2px}
+.dark-card .lead{color:#9d9a92;margin:0 0 16px;font-size:14px}
+.live{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--gold);background:var(--char-2);border-radius:var(--r-pill);padding:5px 12px}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 var(--gold-glow);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,178,36,.6)}100%{box-shadow:0 0 0 10px rgba(255,178,36,0)}}
+.feed{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-height:430px;overflow:auto}
+.feed li{display:grid;grid-template-columns:12px 1fr;gap:10px;padding:10px 4px;border-bottom:1px solid var(--char-line);font-size:14px}
+.feed li:last-child{border-bottom:0}
+.feed .d{width:8px;height:8px;border-radius:50%;background:var(--gold);margin-top:7px}
+.feed .d.pay{background:#45C98A} .feed .d.sim{background:#8E8B83}
+.feed time{display:block;font-size:12px;color:#8E8B83}
+.fair .badge{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-size:22px;font-weight:400}
+.fair .badge .ok{width:30px;height:30px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:16px}
+.fair .badge .no{background:var(--bad)}
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;font-size:13px}
+.lists h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.lists ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.lists .never li{text-decoration:line-through;color:var(--muted)}
+.toast{position:fixed;right:24px;bottom:24px;background:var(--char);color:var(--gold);padding:12px 20px;border-radius:var(--r-pill);font-weight:600;font-size:14px;box-shadow:0 12px 30px -8px rgba(0,0,0,.5);transform:translateY(120%);opacity:0;transition:.35s}
+.toast.show{transform:none;opacity:1}
+
+@media (max-width:980px){.hero,.main{grid-template-columns:1fr}.side{position:static}.navlinks{display:none}}
+@media (max-width:560px){body{padding:12px 16px 40px}.row{grid-template-columns:32px minmax(0,1fr)}.right{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center}.stats{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-  <h1>Collections Console</h1>
-  <div id="health"></div>
-  <div class="bar">
-    <button id="load">Load sample accounts</button>
-    <button id="refresh">Refresh</button>
-  </div>
-  <table>
-    <thead><tr><th>Account</th><th>Name</th><th>Due</th><th>Last outcome</th><th>Payment</th><th></th></tr></thead>
-    <tbody id="rows"></tbody>
-  </table>
-  <h3>Event log</h3>
-  <pre id="events"></pre>
+<div class="shell">
+  <nav>
+    <span class="brand">kural<b>.</b></span>
+    <span class="rule"></span>
+    <div class="navlinks"><a href="#queue">Queue</a><a href="#activity">Activity</a><a href="#fairness">Fairness</a></div>
+    <span class="rule"></span>
+    <span class="pill ghost" id="health" title="Connections"></span>
+    <button class="pill dark" id="callNext">Call next ›</button>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <div class="glow"></div>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 11a8 8 0 0 1 16 0v3a3 3 0 0 1-3 3h-1v-6h4M4 11v3a3 3 0 0 0 3 3h1v-6H4"/></svg>Tamil collections agent</span>
+      <h1>Who will pay<br>first?</h1>
+      <p class="sub">Ranked by how people pay, <b>never by name, area or language.</b> Called in Tamil. Paid through Cashfree.</p>
+    </div>
+    <div class="stats">
+      <div class="stat feature"><div class="k">Call now</div><div class="v" id="sCall">0</div></div>
+      <div class="stat"><div class="k">Collected</div><div class="v" id="sCollected">₹0</div></div>
+      <div class="stat"><div class="k">Outstanding</div><div class="v" id="sOut">₹0</div></div>
+      <div class="stat"><div class="k">Promised later · Verify · Human</div><div class="v" id="sOther">0 · 0 · 0</div></div>
+    </div>
+  </section>
+
+  <section class="main">
+    <div class="card" id="queue">
+      <div class="cardhead">
+        <div>
+          <h2>Today's call list</h2>
+          <p class="lead">Re-forms the moment a payment lands, a promise lapses or a call ends.</p>
+        </div>
+        <button class="pill ghost" id="loadSample">Load sample book</button>
+      </div>
+      <div id="rows"></div>
+    </div>
+
+    <aside class="side">
+      <div class="dark-card" id="activity">
+        <div class="cardhead"><h2>Live activity</h2><span class="live"><i></i>Live</span></div>
+        <p class="lead">Every decision, with the reason.</p>
+        <ul class="feed" id="feed"></ul>
+      </div>
+      <div class="card fair" id="fairness">
+        <h2>Fairness check</h2>
+        <p class="lead">We swap every name, area, language and gender between people and re-rank. The order must not change.</p>
+        <div class="badge" id="fairBadge"></div>
+        <div class="lists">
+          <div><h4>Used</h4><ul id="used"></ul></div>
+          <div class="never"><h4>Never used</h4><ul id="never"></ul></div>
+        </div>
+      </div>
+    </aside>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
 <script>
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2600); }
 
-async function health() {
-  const h = await (await fetch('/health')).json();
-  $('#health').innerHTML = ['sarvam', 'cashfree', 'relayWebhook']
-    .map((k) => `<span class="${h[k] ? 'on' : 'off'}">${k}</span>`).join('') +
-    `<small>public: ${esc(h.publicUrl || 'not set')}</small>`;
+const GROUPS = { call: 'Call now', scheduled: 'Promised later', verify: 'Verify a claim', human: 'With a person', done: 'Paid' };
+const TAG = { call: 'Call', scheduled: 'Promise', verify: 'Verify', human: 'Hardship', done: 'Paid' };
+let prevPos = {}, moved = {}, openMenu = null, queue = [];
+
+function rowHTML(a) {
+  const p = a.payment, b = a.rank.bucket;
+  const due = a.amountDue - Number(p?.paid || 0);
+  const mv = moved[a.id];
+  const reasons = a.rank.reasons;
+  return `
+    <div class="pos">${b === 'call' ? a.position : '·'}</div>
+    <div class="who">
+      <div class="name">${esc(a.name)}
+        ${b !== 'call' ? `<span class="tag t-${b}">${TAG[b]}</span>` : ''}
+        ${p?.status === 'PARTIALLY_PAID' ? '<span class="tag t-part">Part paid</span>' : ''}
+        ${mv ? `<span class="move ${mv < 0 ? 'down' : ''}">${mv > 0 ? '↑' : '↓'} ${Math.abs(mv)}</span>` : ''}
+      </div>
+      <div class="meta">${esc(a.id)} · ${inr(due)} due${p?.paid ? ` · ${inr(p.paid)} paid` : ''}</div>
+      <div class="reason">${esc(reasons[0])}${reasons.length > 1 ? ` <span class="more">· ${esc(reasons.slice(1, 3).join(' · '))}</span>` : ''}</div>
+    </div>
+    <div class="right">
+      ${b === 'call' ? `<div class="score"><span class="bar"><i style="width:${a.rank.score}%"></i></span>${a.rank.score}</div>` : '<div class="score">&nbsp;</div>'}
+      <div class="acts">
+        ${b !== 'done' ? `<button class="btn dark" data-call="${esc(a.id)}">Call</button><button class="btn ghost" data-link="${esc(a.id)}">Link</button>` : ''}
+        <button class="btn ghost" data-menu="${esc(a.id)}" aria-label="Simulate outcome">⋯</button>
+        ${openMenu === a.id ? `<div class="menu">
+          <div class="mh">Simulate</div>
+          <button data-sim="paid" data-id="${esc(a.id)}">Paid in full</button>
+          <button data-sim="partial" data-id="${esc(a.id)}">Part payment</button>
+          <button data-sim="promise" data-id="${esc(a.id)}">Promise for 5 Dec</button>
+          <button data-sim="promise_lapse" data-id="${esc(a.id)}">Promise lapsed</button>
+          <button data-sim="paid_claim" data-id="${esc(a.id)}">Says paid at branch</button>
+          <button data-sim="hardship" data-id="${esc(a.id)}">Hardship</button>
+          <button data-sim="refused" data-id="${esc(a.id)}">Refused</button>
+        </div>` : ''}
+      </div>
+    </div>`;
 }
 
-async function render() {
-  const accounts = await (await fetch('/api/accounts')).json();
-  $('#rows').innerHTML = accounts.map((a) => `
-    <tr>
-      <td>${esc(a.id)}</td><td>${esc(a.name)}</td><td>₹${esc(a.amountDue)}</td>
-      <td>${a.lastOutcome ? esc(a.lastOutcome.outcome) + (a.lastOutcome.promiseDate ? ' · ' + esc(a.lastOutcome.promiseDate) : '') : '—'}</td>
-      <td>${a.payment ? `<span class="st ${esc(a.payment.status)}">${esc(a.payment.status)}</span> ₹${esc(a.payment.paid)}/${esc(a.payment.amount)} <a href="${esc(a.payment.url)}" target="_blank">link</a>` : '—'}</td>
-      <td><button data-call="${esc(a.id)}">Call</button> <button data-link="${esc(a.id)}">Link</button></td>
-    </tr>`).join('');
-  const events = await (await fetch('/api/events')).json();
-  $('#events').textContent = events.slice(-30).reverse().map((e) => `${e.at}  ${e.type}  ${e.accountId || ''}  ${JSON.stringify(e.data)}`).join('\n');
+function renderQueue(accounts) {
+  const box = $('#rows');
+  if (!accounts.length) { box.innerHTML = '<div class="empty">No accounts yet. Load the sample book to begin.</div>'; prevPos = {}; return; }
+  box.querySelector('.empty')?.remove();
+  const first = {};
+  box.querySelectorAll('[data-key]').forEach((el) => { first[el.dataset.key] = el.getBoundingClientRect().top; });
+
+  // Track movement in the call list for the ↑/↓ badges
+  accounts.forEach((a) => {
+    const was = prevPos[a.id];
+    if (was !== undefined && was !== a.position) moved[a.id] = was - a.position;
+  });
+  prevPos = Object.fromEntries(accounts.map((a) => [a.id, a.position]));
+
+  const order = [];
+  let lastGroup = null;
+  for (const a of accounts) {
+    if (a.rank.bucket !== lastGroup) { lastGroup = a.rank.bucket; order.push({ key: 'g-' + lastGroup, group: lastGroup }); }
+    order.push({ key: a.id, a });
+  }
+  const keep = new Set(order.map((o) => o.key));
+  box.querySelectorAll('[data-key]').forEach((el) => { if (!keep.has(el.dataset.key)) el.remove(); });
+
+  for (const o of order) {
+    let el = box.querySelector(`[data-key="${CSS.escape(o.key)}"]`);
+    if (!el) { el = document.createElement('div'); el.dataset.key = o.key; el.className = o.group ? 'group' : 'row'; }
+    if (o.group) el.textContent = GROUPS[o.group];
+    else {
+      const html = rowHTML(o.a);
+      if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+    }
+    box.appendChild(el);
+  }
+
+  // FLIP animation so rows glide to their new place
+  box.querySelectorAll('[data-key]').forEach((el) => {
+    const f = first[el.dataset.key];
+    if (f === undefined) return;
+    const dy = f - el.getBoundingClientRect().top;
+    if (!dy) return;
+    if (!el.classList.contains('group')) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); }
+    el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  });
+}
+
+function renderFeed(events) {
+  const items = events.filter((e) => e.data?.summary).slice(-40).reverse();
+  $('#feed').innerHTML = items.length ? items.map((e) => `
+    <li><span class="d ${e.type === 'cashfree_webhook' ? 'pay' : e.type === 'simulated' ? 'sim' : ''}"></span>
+    <div>${esc(e.data.summary)}<time>${new Date(e.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}${e.type === 'simulated' ? ' · simulated' : ''}</time></div></li>`).join('')
+    : '<li><span class="d sim"></span><div>Waiting for the first call…</div></li>';
+}
+
+async function refresh() {
+  try {
+    const [q, events, fair, health] = await Promise.all([api('/api/queue'), api('/api/events'), api('/api/fairness'), api('/health')]);
+    queue = q.accounts;
+    renderQueue(q.accounts);
+    renderFeed(events);
+    $('#sCall').textContent = q.stats.toCall;
+    $('#sCollected').textContent = inr(q.stats.collected);
+    $('#sOut').textContent = inr(q.stats.outstanding);
+    $('#sOther').textContent = `${q.stats.scheduled} · ${q.stats.verify} · ${q.stats.human}`;
+    $('#fairBadge').innerHTML = q.accounts.length
+      ? `<span class="ok ${fair.pass ? '' : 'no'}">${fair.pass ? '✓' : '!'}</span>${fair.pass ? 'Order unchanged' : 'Order changed'}`
+      : '<span class="ok">–</span>No data yet';
+    $('#used').innerHTML = fair.usedSignals.map((s) => `<li>${esc(s)}</li>`).join('');
+    $('#never').innerHTML = fair.shuffledFields.map((s) => `<li>${esc(s)}</li>`).join('');
+    const on = ['sarvam', 'cashfree', 'relayWebhook'].filter((k) => health[k]).length;
+    $('#health').innerHTML = `<span class="dot ${on === 3 ? 'on' : 'off'}"></span>${on}/3 connected`;
+    $('#health').title = `Sarvam ${health.sarvam ? '✓' : '✗'} · Cashfree ${health.cashfree ? '✓' : '✗'} · Relay ${health.relayWebhook ? '✓' : '✗'}`;
+  } catch (err) { toast(err.message); }
 }
 
 document.addEventListener('click', async (e) => {
-  const call = e.target.dataset.call, link = e.target.dataset.link;
-  if (call) await fetch(`/api/accounts/${call}/call`, { method: 'POST' });
-  if (link) await fetch('/api/relay/payment-link', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ account_id: link }) });
-  if (call || link) render();
+  const t = e.target.closest('button');
+  if (!t) { if (openMenu) { openMenu = null; refresh(); } return; }
+  try {
+    if (t.dataset.menu) { openMenu = openMenu === t.dataset.menu ? null : t.dataset.menu; return refresh(); }
+    if (t.dataset.sim) { openMenu = null; const r = await api(`/api/demo/${t.dataset.id}/simulate`, { type: t.dataset.sim, date: t.dataset.sim === 'promise' ? '2026-12-05' : undefined }); toast(r.summary); return refresh(); }
+    if (t.dataset.call) { await api(`/api/accounts/${t.dataset.call}/call`, {}); toast('Tamil call started'); return refresh(); }
+    if (t.dataset.link) { const r = await api('/api/relay/payment-link', { account_id: t.dataset.link }); toast('Payment link created'); if (r.link_url) window.open(r.link_url, '_blank'); return refresh(); }
+    if (t.id === 'callNext') { const next = queue.find((a) => a.rank.bucket === 'call'); if (!next) return toast('Nobody left to call'); await api(`/api/accounts/${next.id}/call`, {}); toast(`Calling ${next.name}`); return refresh(); }
+    if (t.id === 'loadSample') { const s = await api('/sample-accounts.json'); await api('/api/accounts/import', s); moved = {}; prevPos = {}; toast(`Loaded ${s.accounts.length} accounts`); return refresh(); }
+  } catch (err) { toast(err.message); }
 });
-$('#load').onclick = async () => {
-  const sample = await (await fetch('/sample-accounts.json')).json();
-  await fetch('/api/accounts/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(sample) });
-  render();
-};
-$('#refresh').onclick = render;
-health(); render(); setInterval(render, 5000);
+
+refresh();
+setInterval(() => { if (!openMenu) refresh(); }, 3000);
+setInterval(() => { moved = {}; }, 15000);
 </script>
 </body>
 </html>

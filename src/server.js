@@ -8,6 +8,7 @@ import multer from 'multer';
 import * as sarvam from './sarvam.js';
 import * as cashfree from './cashfree.js';
 import * as store from './store.js';
+import { rankAccounts, fairnessCheck } from './rank.js';
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -44,6 +45,54 @@ app.post('/api/accounts/import', (req, res) => {
 });
 app.get('/api/events', (_req, res) => res.json(store.listEvents()));
 
+// Ranked call list + headline numbers for the console.
+app.get('/api/queue', (_req, res) => {
+  const ranked = rankAccounts(store.listAccounts());
+  const count = (b) => ranked.filter((a) => a.rank.bucket === b).length;
+  res.json({
+    accounts: ranked,
+    stats: {
+      total: ranked.length,
+      toCall: count('call'),
+      scheduled: count('scheduled'),
+      verify: count('verify'),
+      human: count('human'),
+      done: count('done'),
+      collected: ranked.reduce((s, a) => s + Number(a.payment?.paid || 0), 0),
+      outstanding: ranked.reduce((s, a) => s + Math.max(0, a.amountDue - Number(a.payment?.paid || 0)), 0),
+    },
+  });
+});
+
+app.get('/api/fairness', (_req, res) => res.json(fairnessCheck(store.listAccounts())));
+
+// Demo safety net: simulate what a call or payment would do, so the queue can be shown re-forming
+// even if the network or a live call fails on stage.
+app.post('/api/demo/:id/simulate', (req, res) => {
+  const a = store.getAccount(req.params.id);
+  if (!a) return res.status(404).json({ error: 'not found' });
+  const { type, amount, date, note } = req.body;
+  const pay = a.payment || { linkId: `sim-${a.id}`, url: null, amount: a.amountDue, paid: 0 };
+  const now = new Date().toISOString();
+  const effects = {
+    paid: () => [{ payment: { ...pay, status: 'PAID', paid: pay.amount } }, `${a.name} paid ₹${pay.amount} in full`],
+    partial: () => {
+      const paid = Number(amount || Math.round(pay.amount / 2));
+      return [{ payment: { ...pay, status: 'PARTIALLY_PAID', paid } }, `${a.name} paid ₹${paid} of ₹${pay.amount}`];
+    },
+    promise: () => [{ lastOutcome: { outcome: 'promise', promiseDate: date, at: now } }, `${a.name} promised to pay on ${date}`],
+    promise_lapse: () => [{ lastOutcome: { outcome: 'promise', promiseDate: date || new Date(Date.now() - 86_400_000).toISOString().slice(0, 10), at: now } }, `${a.name}'s promise lapsed`],
+    paid_claim: () => [{ lastOutcome: { outcome: 'paid_claim', note: note || 'paid at branch', at: now } }, `${a.name} says already paid (${note || 'at branch'})`],
+    hardship: () => [{ lastOutcome: { outcome: 'hardship', note: note || 'medical emergency', at: now } }, `${a.name} reported hardship (${note || 'medical emergency'})`],
+    refused: () => [{ lastOutcome: { outcome: 'refused', at: now } }, `${a.name} refused to pay`],
+  };
+  if (!effects[type]) return res.status(400).json({ error: `type must be one of ${Object.keys(effects).join(', ')}` });
+  const [patch, summary] = effects[type]();
+  store.upsertAccount({ id: a.id, ...patch });
+  store.logEvent('simulated', a.id, { type, summary });
+  res.json({ ok: true, summary });
+});
+
 // Start a Relay voice call for one account by firing the agent's inbound webhook.
 app.post('/api/accounts/:id/call', wrap(async (req, res) => {
   const a = store.getAccount(req.params.id);
@@ -59,7 +108,7 @@ app.post('/api/accounts/:id/call', wrap(async (req, res) => {
   const r = await fetch(process.env.RELAY_WEBHOOK_URL, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
   });
-  store.logEvent('call_requested', a.id, { relayStatus: r.status });
+  store.logEvent('call_requested', a.id, { relayStatus: r.status, summary: `Tamil call started for ${a.name}` });
   res.json({ relayStatus: r.status, relayBody: await r.text() });
 }));
 
@@ -90,7 +139,10 @@ app.post('/api/relay/payment-link', wrap(async (req, res) => {
     notes: { account_id: a.id },
   });
   store.upsertAccount({ id: a.id, payment: { linkId, url: link.link_url, status: link.link_status, amount: link.link_amount, paid: 0 } });
-  store.logEvent('link_created', a.id, { linkId, amount: link.link_amount, minPartial: min_partial || null });
+  store.logEvent('link_created', a.id, {
+    linkId, amount: link.link_amount, minPartial: min_partial || null,
+    summary: `Payment link for ₹${link.link_amount} sent to ${a.name}${min_partial ? ` (part payment from ₹${min_partial})` : ''}`,
+  });
   res.json({ link_id: linkId, link_url: link.link_url, link_status: link.link_status });
 }));
 
@@ -102,7 +154,10 @@ app.post('/api/relay/outcome', wrap(async (req, res) => {
   if (!a) return res.status(404).json({ error: 'not found' });
   const lastOutcome = { outcome, promiseDate: promise_date || null, amount: amount || null, note: note || null, at: new Date().toISOString() };
   store.upsertAccount({ id: a.id, lastOutcome });
-  store.logEvent('call_outcome', a.id, { ...lastOutcome, transcript: transcript || null });
+  store.logEvent('call_outcome', a.id, {
+    ...lastOutcome, transcript: transcript || null,
+    summary: `Call with ${a.name}: ${outcome.replace(/_/g, ' ')}${promise_date ? ` → ${promise_date}` : ''}`,
+  });
   res.json({ ok: true });
 }));
 
@@ -124,7 +179,11 @@ app.post('/webhooks/cashfree', (req, res) => {
     const paid = Number(d.link_amount_paid ?? d.payment?.payment_amount ?? a.payment.paid);
     store.upsertAccount({ id: a.id, payment: { ...a.payment, status, paid } });
   }
-  store.logEvent('cashfree_webhook', a?.id || null, { type: req.body?.type, linkId, verified: ok, data: d });
+  const status = d.link_status || d.payment?.payment_status;
+  store.logEvent('cashfree_webhook', a?.id || null, {
+    type: req.body?.type, linkId, verified: ok, data: d,
+    summary: a ? `Cashfree: ${a.name}'s link is ${status}` : `Cashfree webhook for unknown link ${linkId}`,
+  });
   res.json({ ok: true });
 });
 
