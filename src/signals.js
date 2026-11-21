@@ -52,7 +52,9 @@ Return JSON with keys:
  summary_en: one short English sentence a manager can read aloud`,
       text,
     );
-    return { ...out, source: 'sarvam' };
+    // Keep Sarvam's reading, but fill a missing promise date from the keyword rules ("5th" → next 5th).
+    const kw = heuristicSignals(text, now);
+    return { ...out, promise_date: out.promise_date || kw.promise_date, source: 'sarvam' };
   } catch (err) {
     console.warn('Sarvam signal extraction failed, using keywords:', err.message);
     return heuristicSignals(text, now);
