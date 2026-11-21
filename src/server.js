@@ -212,7 +212,7 @@ app.get('/api/relay/context/:id', (req, res) => {
 
 app.post('/api/relay/payment-link', wrap(async (req, res) => {
   const { amount, min_partial } = req.body || {};
-  const a = store.getAccount(resolveId(req.body.account_id));
+  const a = store.getAccount(resolveId(req.body?.account_id));
   if (!a) return res.status(404).json({ error: 'not found' });
   const linkAmount = Number(amount || remaining(a));
   // No body from Relay → part payment allowed by default (min_partial: false turns it off).
@@ -234,8 +234,8 @@ app.post('/api/relay/payment-link', wrap(async (req, res) => {
 // The agent reports the call. If it only sends a transcript, we read it with Sarvam.
 // outcome: agreed_to_pay | promise | partial | paid_claim | hardship | refused | no_answer | callback
 app.post('/api/relay/outcome', wrap(async (req, res) => {
-  const { transcript, note } = req.body;
-  const a = store.getAccount(resolveId(req.body.account_id));
+  const { transcript, note } = req.body || {};
+  const a = store.getAccount(resolveId(req.body?.account_id));
   if (!a) return res.status(404).json({ error: 'not found' });
   let o = { outcome: req.body.outcome, promiseDate: req.body.promise_date, amount: req.body.amount, reference: req.body.reference, note };
   let learned = null;
