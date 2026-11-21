@@ -1,22 +1,352 @@
 {
   "accounts": [
-    { "id": "L-20417", "name": "Selvi Murugan", "phone": "9999999999", "language": "ta-IN", "area": "Thillai Nagar", "gender": "F", "amountDue": 2499, "dueDate": "2026-11-05", "history": { "onTimeLast6": 5, "promisesMade": 2, "promisesKept": 2, "partialPays": 0 } },
-    { "id": "L-20388", "name": "Ravi Shankar", "phone": "9999999999", "language": "ta-IN", "area": "Srirangam", "gender": "M", "amountDue": 4800, "dueDate": "2026-10-12", "history": { "onTimeLast6": 2, "promisesMade": 4, "promisesKept": 1, "partialPays": 1 } },
-    { "id": "L-20455", "name": "Fathima Begum", "phone": "9999999999", "language": "ta-IN", "area": "Palakkarai", "gender": "F", "amountDue": 1200, "dueDate": "2026-11-12", "history": { "onTimeLast6": 6, "promisesMade": 0, "promisesKept": 0, "partialPays": 0 } },
-    { "id": "L-20302", "name": "Senthil Kumar", "phone": "9999999999", "language": "ta-IN", "area": "K.K. Nagar", "gender": "M", "amountDue": 7350, "dueDate": "2026-07-30", "history": { "onTimeLast6": 0, "promisesMade": 5, "promisesKept": 0, "partialPays": 0 } },
-    { "id": "L-20431", "name": "Meenakshi Sundaram", "phone": "9999999999", "language": "ta-IN", "area": "Woraiyur", "gender": "F", "amountDue": 3100, "dueDate": "2026-11-01", "history": { "onTimeLast6": 4, "promisesMade": 1, "promisesKept": 1, "partialPays": 1 },
-      "lastOutcome": { "outcome": "promise", "promiseDate": "2026-12-05", "note": "salary 5th-ku varum" } },
-    { "id": "L-20366", "name": "Arul Prakash", "phone": "9999999999", "language": "ta-IN", "area": "Cantonment", "gender": "M", "amountDue": 5600, "dueDate": "2026-10-20", "history": { "onTimeLast6": 3, "promisesMade": 2, "promisesKept": 1, "partialPays": 2 } },
-    { "id": "L-20399", "name": "Kavitha Rajan", "phone": "9999999999", "language": "ta-IN", "area": "Ariyamangalam", "gender": "F", "amountDue": 1850, "dueDate": "2026-10-28", "history": { "onTimeLast6": 5, "promisesMade": 1, "promisesKept": 1, "partialPays": 0 },
-      "lastOutcome": { "outcome": "paid_claim", "note": "branch-la kattiten" } },
-    { "id": "L-20278", "name": "Joseph Antony", "phone": "9999999999", "language": "ta-IN", "area": "Golden Rock", "gender": "M", "amountDue": 6200, "dueDate": "2026-09-15", "history": { "onTimeLast6": 3, "promisesMade": 3, "promisesKept": 2, "partialPays": 1 },
-      "lastOutcome": { "outcome": "hardship", "note": "father in hospital" } },
-    { "id": "L-20442", "name": "Lakshmi Narayanan", "phone": "9999999999", "language": "ta-IN", "area": "Thiruverumbur", "gender": "F", "amountDue": 2750, "dueDate": "2026-11-08", "history": { "onTimeLast6": 4, "promisesMade": 2, "promisesKept": 1, "partialPays": 0 },
-      "lastOutcome": { "outcome": "promise", "promiseDate": "2026-11-20" } },
-    { "id": "L-20351", "name": "Mohammed Rafiq", "phone": "9999999999", "language": "ta-IN", "area": "Palakkarai", "gender": "M", "amountDue": 3900, "dueDate": "2026-10-02", "history": { "onTimeLast6": 1, "promisesMade": 2, "promisesKept": 0, "partialPays": 0 },
-      "lastOutcome": { "outcome": "refused" } },
-    { "id": "L-20463", "name": "Priya Dharshini", "phone": "9999999999", "language": "ta-IN", "area": "Thillai Nagar", "gender": "F", "amountDue": 980, "dueDate": "2026-11-15", "history": { "onTimeLast6": 6, "promisesMade": 1, "promisesKept": 1, "partialPays": 0 } },
-    { "id": "L-20317", "name": "Ganesan Pillai", "phone": "9999999999", "language": "ta-IN", "area": "Srirangam", "gender": "M", "amountDue": 4400, "dueDate": "2026-08-25", "history": { "onTimeLast6": 2, "promisesMade": 3, "promisesKept": 2, "partialPays": 1 },
-      "attempts": 2, "lastOutcome": { "outcome": "no_answer" } }
+    {
+      "id": "L-20417",
+      "name": "Selvi Murugan",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Thillai Nagar",
+      "gender": "F",
+      "amountDue": 2499,
+      "dueDate": "2026-11-05",
+      "history": {
+        "onTimeLast6": 5,
+        "promisesMade": 2,
+        "promisesKept": 2,
+        "partialPays": 0
+      }
+    },
+    {
+      "id": "L-20388",
+      "name": "Ravi Shankar",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Srirangam",
+      "gender": "M",
+      "amountDue": 4800,
+      "dueDate": "2026-10-12",
+      "history": {
+        "onTimeLast6": 2,
+        "promisesMade": 4,
+        "promisesKept": 1,
+        "partialPays": 1
+      }
+    },
+    {
+      "id": "L-20455",
+      "name": "Fathima Begum",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Palakkarai",
+      "gender": "F",
+      "amountDue": 1200,
+      "dueDate": "2026-11-12",
+      "history": {
+        "onTimeLast6": 6,
+        "promisesMade": 0,
+        "promisesKept": 0,
+        "partialPays": 0
+      }
+    },
+    {
+      "id": "L-20302",
+      "name": "Senthil Kumar",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "K.K. Nagar",
+      "gender": "M",
+      "amountDue": 7350,
+      "dueDate": "2026-07-30",
+      "history": {
+        "onTimeLast6": 0,
+        "promisesMade": 5,
+        "promisesKept": 0,
+        "partialPays": 0
+      }
+    },
+    {
+      "id": "L-20431",
+      "name": "Meenakshi Sundaram",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Woraiyur",
+      "gender": "F",
+      "amountDue": 3100,
+      "dueDate": "2026-11-01",
+      "history": {
+        "onTimeLast6": 4,
+        "promisesMade": 1,
+        "promisesKept": 1,
+        "partialPays": 1
+      },
+      "lastOutcome": {
+        "outcome": "promise",
+        "promiseDate": "2026-12-05",
+        "note": "salary 5th-ku varum"
+      }
+    },
+    {
+      "id": "L-20366",
+      "name": "Arul Prakash",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Cantonment",
+      "gender": "M",
+      "amountDue": 5600,
+      "dueDate": "2026-10-20",
+      "history": {
+        "onTimeLast6": 3,
+        "promisesMade": 2,
+        "promisesKept": 1,
+        "partialPays": 2
+      },
+      "signals": {
+        "linkOpenedAt": "2026-11-20"
+      }
+    },
+    {
+      "id": "L-20399",
+      "name": "Kavitha Rajan",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Ariyamangalam",
+      "gender": "F",
+      "amountDue": 1850,
+      "dueDate": "2026-10-28",
+      "history": {
+        "onTimeLast6": 5,
+        "promisesMade": 1,
+        "promisesKept": 1,
+        "partialPays": 0
+      },
+      "lastOutcome": {
+        "outcome": "paid_claim",
+        "note": "branch-la kattiten"
+      }
+    },
+    {
+      "id": "L-20278",
+      "name": "Joseph Antony",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Golden Rock",
+      "gender": "M",
+      "amountDue": 6200,
+      "dueDate": "2026-09-15",
+      "history": {
+        "onTimeLast6": 3,
+        "promisesMade": 3,
+        "promisesKept": 2,
+        "partialPays": 1
+      },
+      "lastOutcome": {
+        "outcome": "hardship",
+        "note": "father in hospital"
+      }
+    },
+    {
+      "id": "L-20442",
+      "name": "Lakshmi Narayanan",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Thiruverumbur",
+      "gender": "F",
+      "amountDue": 2750,
+      "dueDate": "2026-11-08",
+      "history": {
+        "onTimeLast6": 4,
+        "promisesMade": 2,
+        "promisesKept": 1,
+        "partialPays": 0
+      },
+      "lastOutcome": {
+        "outcome": "promise",
+        "promiseDate": "2026-11-20"
+      }
+    },
+    {
+      "id": "L-20351",
+      "name": "Mohammed Rafiq",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Palakkarai",
+      "gender": "M",
+      "amountDue": 3900,
+      "dueDate": "2026-10-02",
+      "history": {
+        "onTimeLast6": 1,
+        "promisesMade": 2,
+        "promisesKept": 0,
+        "partialPays": 0
+      },
+      "lastOutcome": {
+        "outcome": "refused"
+      }
+    },
+    {
+      "id": "L-20463",
+      "name": "Priya Dharshini",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Thillai Nagar",
+      "gender": "F",
+      "amountDue": 980,
+      "dueDate": "2026-11-15",
+      "history": {
+        "onTimeLast6": 6,
+        "promisesMade": 1,
+        "promisesKept": 1,
+        "partialPays": 0
+      }
+    },
+    {
+      "id": "L-20317",
+      "name": "Ganesan Pillai",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Srirangam",
+      "gender": "M",
+      "amountDue": 4400,
+      "dueDate": "2026-08-25",
+      "history": {
+        "onTimeLast6": 2,
+        "promisesMade": 3,
+        "promisesKept": 2,
+        "partialPays": 1
+      },
+      "attempts": 2,
+      "lastOutcome": {
+        "outcome": "no_answer"
+      }
+    },
+    {
+      "id": "L-20471",
+      "name": "Vignesh Raman",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Woraiyur",
+      "gender": "M",
+      "amountDue": 3300,
+      "dueDate": "2026-11-02",
+      "history": {
+        "onTimeLast6": 4,
+        "promisesMade": 1,
+        "promisesKept": 1,
+        "partialPays": 1
+      }
+    },
+    {
+      "id": "L-20325",
+      "name": "Saranya Devi",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Srirangam",
+      "gender": "F",
+      "amountDue": 2100,
+      "dueDate": "2026-10-18",
+      "history": {
+        "onTimeLast6": 3,
+        "promisesMade": 2,
+        "promisesKept": 1,
+        "partialPays": 0
+      }
+    },
+    {
+      "id": "L-20489",
+      "name": "Abdul Kareem",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Palakkarai",
+      "gender": "M",
+      "amountDue": 5150,
+      "dueDate": "2026-11-09",
+      "history": {
+        "onTimeLast6": 5,
+        "promisesMade": 0,
+        "promisesKept": 0,
+        "partialPays": 0
+      }
+    },
+    {
+      "id": "L-20294",
+      "name": "Bhuvana Shankar",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "K.K. Nagar",
+      "gender": "F",
+      "amountDue": 8900,
+      "dueDate": "2026-08-10",
+      "history": {
+        "onTimeLast6": 1,
+        "promisesMade": 3,
+        "promisesKept": 1,
+        "partialPays": 1
+      }
+    },
+    {
+      "id": "L-20412",
+      "name": "Dinesh Babu",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Cantonment",
+      "gender": "M",
+      "amountDue": 1650,
+      "dueDate": "2026-10-30",
+      "history": {
+        "onTimeLast6": 2,
+        "promisesMade": 2,
+        "promisesKept": 0,
+        "partialPays": 0,
+        "trend": "worsening"
+      }
+    },
+    {
+      "id": "L-20498",
+      "name": "Revathi Mohan",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Thillai Nagar",
+      "gender": "F",
+      "amountDue": 2850,
+      "dueDate": "2026-11-14",
+      "history": {
+        "onTimeLast6": 6,
+        "promisesMade": 2,
+        "promisesKept": 2,
+        "partialPays": 1
+      }
+    },
+    {
+      "id": "L-20336",
+      "name": "Karthik Selvam",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Golden Rock",
+      "gender": "M",
+      "amountDue": 4250,
+      "dueDate": "2026-09-28",
+      "history": {
+        "onTimeLast6": 2,
+        "promisesMade": 1,
+        "promisesKept": 1,
+        "partialPays": 2
+      }
+    },
+    {
+      "id": "L-20457",
+      "name": "Nandhini Arul",
+      "phone": "9999999999",
+      "language": "ta-IN",
+      "area": "Ariyamangalam",
+      "gender": "F",
+      "amountDue": 1400,
+      "dueDate": "2026-11-03",
+      "history": {
+        "onTimeLast6": 4,
+        "promisesMade": 0,
+        "promisesKept": 0,
+        "partialPays": 0
+      }
+    }
   ]
 }

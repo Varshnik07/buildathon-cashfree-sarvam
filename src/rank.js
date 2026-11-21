@@ -1,20 +1,43 @@
-// Who should we call first? A transparent, rule-based score with a reason a manager can read aloud.
+// ============================================================================================
+//  ALGORITHM SLOT — who should we call first?
+//  Edit WEIGHTS and scoreAccount() below. Everything else (screen, proof, fairness check,
+//  Relay calls) re-uses whatever this file returns, so swapping the logic takes a minute.
 //
-// USED signals (behaviour only): on-time history, promises kept, days overdue, part-payment history,
-// latest call outcome, payment-link status, call attempts.
-// NEVER used: name, area/pincode, language, gender (or anything that can stand in for caste/religion/class).
-// Language only decides which language we call in.
-export const USED_SIGNALS = ['On-time payments (last 6)', 'Promises kept vs made', 'Days overdue', 'Part payments before', 'Last call outcome', 'Payment link status', 'Call attempts'];
-export const NEVER_USED = ['name', 'area', 'language', 'gender'];
+//  Input:  one account (see data/sample-accounts.json for the fields)
+//  Output: { bucket, score 0–100, reasons[], parts[] }
+//    bucket  = call | scheduled | verify | human | done
+//    reasons = plain sentences a manager could read aloud (first one is the headline)
+//    parts   = how the score was built, for the "why" panel
+//
+//  USED signals (behaviour only). NEVER used: name, area, language, gender, age —
+//  or anything that can stand in for caste, religion or class. Language only picks the
+//  language we call in.
+// ============================================================================================
+export const USED_SIGNALS = ['On-time payments (last 6)', 'Promises kept vs made', 'Days overdue', 'Part payments before', 'Payment trend', 'Tried to pay (link opened / payment failed)', 'Last call outcome', 'Call attempts'];
+export const NEVER_USED = ['name', 'area', 'language', 'gender', 'age'];
+
+export const WEIGHTS = {
+  onTime: 40,          // × share of last 6 months paid on time
+  reliability: 25,     // × promises kept / made (or on-time share if they never promised)
+  overdue: 15,         // × freshness of the debt (recent overdue is easier to recover)
+  partialHistory: 10,  // has paid in parts before
+  base: 10,
+  worsening: -10,      // payments getting later month by month
+  triedToPay: 20,      // opened the link or a payment attempt failed recently
+  promiseDue: 15,      // promise date is today or just passed
+  partlyPaid: -15,     // already paid part of this cycle
+  refused: -20,
+  perMissedCall: -5,
+};
+export const MAX_ATTEMPTS = 3;
+export const EXPLORE_SHARE = 0.1; // 10% of AI calls go to random people so the ranking can't fool itself
 
 const DAY = 86_400_000;
-
 export function today() {
   return process.env.TODAY ? new Date(process.env.TODAY) : new Date(new Date().toDateString());
 }
-
 const fmt = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-const days = (from, to) => Math.round((to - new Date(from)) / DAY);
+const daysBetween = (from, to) => Math.round((to - new Date(from)) / DAY);
 
 function overdueFactor(d) {
   if (d <= 30) return 1;
@@ -27,58 +50,112 @@ export function scoreAccount(a, now = today()) {
   const h = a.history || {};
   const out = a.lastOutcome || {};
   const pay = a.payment || {};
-  const reasons = [];
+  const sig = a.signals || {};
+  const attempts = a.attempts || 0;
 
-  // Terminal / hold states first — these people should not be in today's call list.
-  if (pay.status === 'PAID') return { bucket: 'done', score: 0, reasons: ['Paid in full'] };
-  if (out.outcome === 'paid_claim') return { bucket: 'verify', score: 0, reasons: [`Says already paid${out.note ? ` (${out.note})` : ''}. Verify before calling again`] };
-  if (out.outcome === 'hardship') return { bucket: 'human', score: 0, reasons: [`Hardship${out.note ? `: ${out.note}` : ''}. Offer a plan via a person, no pressure`] };
+  // People who should not be in the AI's call list today.
+  if (pay.status === 'PAID') return { bucket: 'done', score: 0, reasons: ['Paid in full'], parts: [] };
+  if (out.outcome === 'paid_claim') {
+    return { bucket: 'verify', score: 0, parts: [], reasons: [`Says already paid${out.note ? ` ("${out.note}")` : ''}${out.reference ? `, ref ${out.reference}` : ''}. Human team verifies before any more calls`] };
+  }
+  if (out.outcome === 'hardship') {
+    return { bucket: 'human', score: 0, parts: [], reasons: [`Hardship${out.note ? `: ${out.note}` : ''}. A person offers a plan, no pressure`] };
+  }
+  if (a.blockers?.length) {
+    return { bucket: 'human', score: 0, parts: [], reasons: [`Data needs fixing first: ${a.blockers.join(', ')}`] };
+  }
+  if (attempts >= MAX_ATTEMPTS && out.outcome === 'no_answer') {
+    return { bucket: 'human', score: 0, parts: [], reasons: [`No answer after ${attempts} calls. Stop calling; human team decides next step`] };
+  }
 
   const onTime = (h.onTimeLast6 ?? 3) / 6;
-  // Some people never promise but always pay: with no promise history, judge them by what they actually paid.
+  // Some people never promise but always pay: judge them by what they actually paid.
   const reliability = h.promisesMade ? h.promisesKept / h.promisesMade : onTime;
-  const overdue = days(a.dueDate, now);
-  let score = 40 * onTime + 25 * reliability + 15 * overdueFactor(overdue) + (h.partialPays ? 10 : 0) + 10;
+  const overdue = a.overdueDays ?? (a.dueDate ? daysBetween(a.dueDate, now) : 0);
+  const parts = [
+    { label: `Paid on time ${h.onTimeLast6 ?? '?'} of last 6`, points: WEIGHTS.onTime * onTime },
+    { label: h.promisesMade ? `Kept ${h.promisesKept} of ${h.promisesMade} promises` : 'No promise history (uses on-time record)', points: WEIGHTS.reliability * reliability },
+    { label: `${overdue} days overdue`, points: WEIGHTS.overdue * overdueFactor(overdue) },
+    { label: 'Base', points: WEIGHTS.base },
+  ];
+  if (h.partialPays) parts.push({ label: 'Has paid in parts before', points: WEIGHTS.partialHistory });
+  if (h.trend === 'worsening') parts.push({ label: 'Payments getting later', points: WEIGHTS.worsening });
+  if (sig.paymentFailedAt) parts.push({ label: `Tried to pay on ${fmt(sig.paymentFailedAt)} but it failed`, points: WEIGHTS.triedToPay });
+  else if (sig.linkOpenedAt) parts.push({ label: `Opened the payment link on ${fmt(sig.linkOpenedAt)}`, points: WEIGHTS.triedToPay / 2 });
+  if (pay.status === 'PARTIALLY_PAID') parts.push({ label: `Part paid ₹${pay.paid} of ₹${pay.amount}`, points: WEIGHTS.partlyPaid });
+  if (out.outcome === 'refused') parts.push({ label: 'Refused last call', points: WEIGHTS.refused });
+  if (out.outcome === 'no_answer') parts.push({ label: `No answer (${attempts || 1}×)`, points: WEIGHTS.perMissedCall * (attempts || 1) });
 
-  reasons.push(`Paid on time ${h.onTimeLast6 ?? '?'} of last 6`);
-  if (h.promisesMade) reasons.push(`Kept ${h.promisesKept} of ${h.promisesMade} promises`);
-  reasons.push(`${overdue} days overdue`);
-  if (h.partialPays) reasons.push('Has paid in parts before');
-
-  if (pay.status === 'PARTIALLY_PAID') {
-    score -= 15;
-    reasons.unshift(`Part paid ₹${pay.paid} of ₹${pay.amount}. Follow up on the rest`);
-  }
-
+  let headline = null;
   if (out.outcome === 'promise' && out.promiseDate) {
-    const until = -days(out.promiseDate, now);
-    if (until > 0) return { bucket: 'scheduled', score: Math.round(score), reasons: [`Promised to pay on ${fmt(out.promiseDate)}. Call then`, ...reasons] };
-    score += 15;
-    reasons.unshift(until === 0 ? 'Promise due today' : `Promise lapsed on ${fmt(out.promiseDate)}`);
+    const until = -daysBetween(out.promiseDate, now);
+    if (until > 0) {
+      const score = Math.round(parts.reduce((s, p) => s + p.points, 0));
+      return { bucket: 'scheduled', score: clamp(score), parts, reasons: [`Promised to pay on ${fmt(out.promiseDate)}${out.note ? ` ("${out.note}")` : ''}. AI calls back then`, ...parts.map((p) => p.label)] };
+    }
+    parts.push({ label: until === 0 ? 'Promise due today' : `Promise lapsed on ${fmt(out.promiseDate)}`, points: WEIGHTS.promiseDue });
+    headline = parts.at(-1).label;
   }
-  if (out.outcome === 'refused') { score -= 20; reasons.unshift('Refused last call'); }
-  if (out.outcome === 'no_answer') { score -= 5 * (a.attempts || 1); reasons.unshift(`No answer (${a.attempts || 1}×)`); }
 
-  return { bucket: 'call', score: Math.max(0, Math.min(100, Math.round(score))), reasons };
+  const score = clamp(Math.round(parts.reduce((s, p) => s + p.points, 0)));
+  // Headline = the most decisive thing: a lapsed promise, a payment attempt, a refusal, else history.
+  const lead = headline || parts.find((p) => /Tried to pay|Opened the payment|Refused|No answer|Part paid|getting later/.test(p.label))?.label;
+  const reasons = [...new Set([lead, ...parts.filter((p) => p.label !== 'Base').map((p) => p.label)].filter(Boolean))];
+  return { bucket: 'call', score, reasons, parts: parts.map((p) => ({ ...p, points: Math.round(p.points) })) };
 }
 
+const clamp = (n) => Math.max(0, Math.min(100, n));
 const BUCKET_ORDER = { call: 0, scheduled: 1, verify: 2, human: 3, done: 4 };
 
-export function rankAccounts(accounts, now = today()) {
-  return accounts
-    .map((a) => ({ ...a, rank: scoreAccount(a, now) }))
-    .sort((x, y) => BUCKET_ORDER[x.rank.bucket] - BUCKET_ORDER[y.rank.bucket] || y.rank.score - x.rank.score || x.id.localeCompare(y.id))
-    .map((a, i) => ({ ...a, position: i + 1 }));
+// Stable pseudo-random number per account per day (so the 10% random picks don't jump around on refresh).
+function dailyHash(id, now) {
+  let h = 2166136261;
+  for (const c of `${id}|${now.toISOString().slice(0, 10)}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return (h >>> 0) / 4294967295;
 }
 
-// Fairness check: shuffle every protected field across accounts and re-rank.
+export function rankAccounts(accounts, now = today(), { explore = true } = {}) {
+  const scored = accounts.map((a) => ({ ...a, rank: scoreAccount(a, now) }));
+  const sorted = scored.sort((x, y) => BUCKET_ORDER[x.rank.bucket] - BUCKET_ORDER[y.rank.bucket] || y.rank.score - x.rank.score || String(x.id).localeCompare(String(y.id)));
+
+  let callList = sorted.filter((a) => a.rank.bucket === 'call');
+  const rest = sorted.filter((a) => a.rank.bucket !== 'call');
+  const k = explore ? Math.floor(callList.length * EXPLORE_SHARE) : 0;
+  if (k > 0) {
+    // Pick k random people from outside the top 10 and slot one in at every 10th position.
+    const pool = callList.slice(10).sort((x, y) => dailyHash(x.id, now) - dailyHash(y.id, now)).slice(0, k);
+    const picked = new Set(pool.map((a) => a.id));
+    const ranked = callList.filter((a) => !picked.has(a.id));
+    pool.forEach((a, i) => {
+      a.rank = { ...a.rank, explore: true, reasons: ['Random check (10% of calls) so the ranking keeps learning from people it would skip', ...a.rank.reasons] };
+      ranked.splice(Math.min(ranked.length, (i + 1) * 10 - 1), 0, a);
+    });
+    callList = ranked;
+  }
+  return [...callList, ...rest].map((a, i) => ({ ...a, position: i + 1 }));
+}
+
+// Fairness check: swap every protected field between people and re-rank.
 // If the order doesn't change, the score cannot be leaning on those fields.
 export function fairnessCheck(accounts) {
-  const before = rankAccounts(accounts).map((a) => a.id);
+  const order = (list) => rankAccounts(list, today(), { explore: false }).map((a) => a.id).join();
   const shuffled = accounts.map((a, i) => {
     const donor = accounts[(i + 1) % accounts.length];
-    return { ...a, name: donor.name, area: donor.area, language: donor.language, gender: donor.gender };
+    return { ...a, name: donor.name, area: donor.area, language: donor.language, gender: donor.gender, age: donor.age };
   });
-  const after = rankAccounts(shuffled).map((a) => a.id);
-  return { pass: before.join() === after.join(), shuffledFields: NEVER_USED, usedSignals: USED_SIGNALS, checkedAt: new Date().toISOString() };
+  return { pass: order(accounts) === order(shuffled), shuffledFields: NEVER_USED, usedSignals: USED_SIGNALS, checkedAt: new Date().toISOString() };
+}
+
+// Hard rules checked in code before any AI call (not just in the agent's prompt).
+export function callPolicy(account, now = new Date()) {
+  const [from, to] = (process.env.CALL_WINDOW || '8-19').split('-').map(Number);
+  const hour = Number(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', hour12: false }));
+  const bucket = scoreAccount(account).bucket;
+  if (!process.env.IGNORE_CALL_WINDOW && (hour < from || hour >= to)) return { allowed: false, reason: `Outside the calling window (${from}:00–${to}:00 IST)` };
+  if ((account.attempts || 0) >= MAX_ATTEMPTS) return { allowed: false, reason: `Already called ${account.attempts} times this cycle` };
+  if (bucket === 'human') return { allowed: false, reason: 'Hardship or unreachable cases go to a person, not the AI' };
+  if (bucket === 'verify') return { allowed: false, reason: 'Says already paid: human team verifies first' };
+  if (bucket === 'done') return { allowed: false, reason: 'Already paid' };
+  if (bucket === 'scheduled') return { allowed: false, reason: `Promised to pay on ${fmt(account.lastOutcome.promiseDate)}. Wait until then` };
+  return { allowed: true };
 }

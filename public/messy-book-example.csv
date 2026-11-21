@@ -1,0 +1,10 @@
+Loan No.,Borrower Name,Mobile,Lang,Outstanding,EMI Date,PAY_1,PAY_2,PAY_3,PAY_4,PAY_5,PAY_6,PTP Made,PTP Kept,Field Notes,Pincode,Gender
+TRY-1001,  Selvi   Murugan ,+91 98400 12345,Tamil,"₹2,499",05/11/2026,0,0,1,0,0,0,2,2,salary 5th-ku varum,620018,F
+TRY-1002,Ravi Shankar,09840012346,ta,4.8k,12-Oct-2026,2,1,1,0,2,1,4,1,,620006,M
+TRY-1003,Fathima Begum,9840012347,,1200,2026-11-12,0,0,0,0,0,0,0,0,,620008,F
+TRY-1004,Senthil Kumar,98400,Tamil,"7,350",30/07/26,3,3,2,2,1,1,5,0,not picking calls,620021,M
+TRY-1005,Kavitha Rajan,9840012349,Tamil,1850,28 Oct 2026,0,0,0,1,0,0,1,1,branch-la kattiten yesterday,620010,F
+TRY-1006,Joseph Antony,9840012350,Tamil,0.062L,15/09/2026,1,1,0,0,1,0,3,2,father in hospital,620004,M
+TRY-1002,Ravi Shankar,9840012346,Tamil,4800,12/10/2026,,,,,,,,,,,
+TRY-1007,Priya Dharshini,9840012351,Tamil,980,15/11/2026,0,0,0,0,0,0,1,1,will pay half now rest on 10th,620018,F
+,Anand Kumar,9840012352,Tamil,abc,,,,,,,,,,,,M

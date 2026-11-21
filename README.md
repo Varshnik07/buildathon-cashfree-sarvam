@@ -1,6 +1,19 @@
-# Buildathon base — Relay + Sarvam + Cashfree
+# Kural — Who will pay first? (Problem 2)
 
-Glue server between the **Relay** voice agent, **Sarvam** (Tamil speech + LLM) and **Cashfree** (payment links, test mode).
+The brain behind the **Relay** voice agent: cleans a borrower book, ranks who to call with a readable reason,
+enforces the calling rules, learns from calls (**Sarvam**) and payments (**Cashfree**), and shows the call list
+re-forming live.
+
+| File | What it is |
+|---|---|
+| `src/rank.js` | **Algorithm slot**: weights, score, groups, 10% random checks, fairness test, call rules |
+| `src/importer.js` | Messy CSV → clean accounts, every guess flagged |
+| `src/signals.js` | Field note / transcript → outcome (Sarvam chat model, keyword fallback) |
+| `src/server.js` | API for the screen, Relay and Cashfree |
+| `public/index.html` | The app (call list, proof, fairness, data) |
+| `scripts/proof/` | Look-back test on the UCI dataset → `public/proof.json` |
+| `AGENT-RULES.md` | How to set up the Relay agent (prompt, HTTP actions) |
+| `SUBMISSION.md` | Design note + success / failure case |
 
 ```
 Our app  ──POST──▶  Relay inbound webhook     start a Tamil call for one account
@@ -54,4 +67,7 @@ Open http://localhost:3000 → **Load sample accounts** → the Health chips sho
 - **Sandbox does not send SMS/WhatsApp for payment links, only email.** For the demo, read the link out / show it on screen, or send it through Relay's own messaging.
 - Sarvam models used: `saaras:v4` (STT, `codemix` mode for Tanglish), `bulbul:v3` (TTS, speaker `kavitha`), `mayura:v1` (translate), `sarvam-105b` (chat/extraction).
 - Helper endpoints for Postman: `POST /api/sarvam/tts`, `/api/sarvam/stt` (multipart `file`), `/api/sarvam/translate`, `/api/sarvam/signals` (`{ "text": "…" }` → structured outcome).
-- Data lives in `data/db.json`. Delete it to reset.
+- Data lives in `data/db.json`. **Reset demo** in the app (or `POST /api/reset`) reloads the sample book.
+- `npm run proof` re-runs the look-back test after you change `src/rank.js` (needs the UCI file in `../datasets/`).
+- Calling window is enforced (8 AM–7 PM IST). For testing outside it, start with `IGNORE_CALL_WINDOW=1`.
+- Upload any CSV in the app (Borrower data). Try `data/messy-book-example.csv`.

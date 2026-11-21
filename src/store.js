@@ -31,6 +31,11 @@ export function replaceAccounts(accounts) {
   save();
 }
 
+export function reset(accounts = []) {
+  db = { accounts: Object.fromEntries(accounts.map((a) => [a.id, a])), events: [] };
+  save();
+}
+
 export function findAccountByLinkId(linkId) {
   return listAccounts().find((a) => a.payment?.linkId === linkId);
 }

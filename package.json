@@ -6,6 +6,7 @@
     "dev": "node --env-file=.env --watch src/server.js",
     "start": "node --env-file=.env src/server.js",
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
+    "proof": "uv run -q --with pandas --with xlrd python scripts/proof/convert_uci.py \"../datasets/default of credit card clients.xls\" ../datasets/uci-accounts.json && node scripts/proof/backtest.js ../datasets/uci-accounts.json",
     "test:sarvam": "node --env-file=.env scripts/test-sarvam.js",
     "test:cashfree": "node --env-file=.env scripts/test-cashfree.js"
   },
