@@ -180,9 +180,14 @@ app.post('/api/accounts/:id/call', wrap(async (req, res) => {
   const r = await fetch(process.env.RELAY_WEBHOOK_URL, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
   });
+  const relayBody = await r.text();
+  if (!r.ok) {
+    store.logEvent('call_blocked', a.id, { relayStatus: r.status, summary: `Relay rejected the call for ${a.name} (HTTP ${r.status}). Check the webhook URL and that the agent is live` });
+    return res.status(502).json({ error: `Relay returned ${r.status}. Check RELAY_WEBHOOK_URL and that the agent is not in Draft`, relayBody });
+  }
   store.upsertAccount({ id: a.id, attempts: (a.attempts || 0) + 1, lastCallAt: new Date().toISOString() });
   store.logEvent('call_requested', a.id, { relayStatus: r.status, summary: `AI calling ${a.name} in Tamil (attempt ${(a.attempts || 0) + 1}). Why: ${rank.reasons[0]}` });
-  res.json({ relayStatus: r.status, relayBody: await r.text() });
+  res.json({ relayStatus: r.status, relayBody });
 }));
 
 // ---------- Endpoints for Relay HTTP actions ----------
