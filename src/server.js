@@ -15,7 +15,6 @@ import { extractSignals } from './signals.js';
 import { importBook } from './importer.js';
 import * as rankingAgent from './rankingAgent.js';
 import { historyFor } from './history.js';
-import { mountBrowserVoice } from './browser-voice.js';
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -166,9 +165,6 @@ app.post('/api/ranking-agent/run', wrap(async (req, res) => res.json(await ranki
 app.get('/api/ranking-agent/status', (_req, res) => res.json({ ...rankingAgent.status(), flagged: rankingAgent.loadCards().length }));
 
 app.get('/api/fairness', (_req, res) => res.json(fairnessCheck(store.listAccounts())));
-
-// Browser voice call through the Samvaad agent (Sarvam real-time voice).
-mountBrowserVoice(app, { store, callPolicy, remaining });
 
 // ---------- Start an AI call (our app → Relay) ----------
 app.post('/api/accounts/:id/call', wrap(async (req, res) => {

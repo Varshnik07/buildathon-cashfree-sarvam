@@ -903,10 +903,5 @@ loadProof();
 setInterval(() => { if (!openMenu) refresh(); }, 3000);
 setInterval(() => { moved = {}; }, 15000);
 </script>
-<script type="module">
-// Live voice through the Samvaad agent; falls back to the built-in call if it can't connect.
-import { createVoicePanel } from '/browser-voice.js';
-window.startLiveCall = createVoicePanel({ refresh: () => refresh(), toast: (m) => toast(m), onFallback: (acc) => legacyCall(acc) });
-</script>
 </body>
 </html>
