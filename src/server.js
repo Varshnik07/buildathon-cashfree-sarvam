@@ -236,7 +236,10 @@ app.post('/api/relay/payment-link', wrap(async (req, res) => {
 app.post('/api/relay/outcome', wrap(async (req, res) => {
   // Accepts JSON body or query params (Relay's JSON editor can be fussy).
   req.body = { ...req.query, ...(req.body || {}) };
-  const { transcript, note } = req.body;
+  // No outcome and no transcript (e.g. a Relay step with no body): use the demo transcript, labelled as such.
+  const demo = !req.body.outcome && !req.body.transcript;
+  const transcript = demo ? (process.env.DEMO_TRANSCRIPT || 'salary 5th-ku varum, appo half kattiduven') : req.body.transcript;
+  const { note } = req.body;
   const a = store.getAccount(resolveId(req.body.account_id));
   if (!a) return res.status(404).json({ error: 'not found' });
   let o = { outcome: req.body.outcome, promiseDate: req.body.promise_date, amount: req.body.amount, reference: req.body.reference, note };
@@ -250,11 +253,11 @@ app.post('/api/relay/outcome', wrap(async (req, res) => {
     };
   }
   if (!o.outcome) return res.status(400).json({ error: 'send outcome or transcript' });
-  const updated = applyOutcome(a, { ...o, source: learned ? `call transcript (${learned.source})` : 'call' });
+  const updated = applyOutcome(a, { ...o, source: demo ? `demo transcript (${learned.source})` : learned ? `call transcript (${learned.source})` : 'call' });
   const rank = scoreAccount(updated);
   store.logEvent('call_outcome', a.id, {
     ...o, transcript: transcript || null, learned,
-    summary: `${outcomeSummary(a, o)} → now in "${rank.bucket}"`,
+    summary: `${outcomeSummary(a, o)} → now in "${rank.bucket}"${demo ? ' (demo transcript)' : ''}`,
   });
   res.json({ ok: true, outcome: o, learned, bucket: rank.bucket });
 }));
