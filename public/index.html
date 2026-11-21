@@ -764,7 +764,7 @@ async function priyaSays(ta, en) {
   ta = clean(ta); en = clean(en);
   call.history.push({ role: 'agent', text: ta });
   bubble('agent', ta, en);
-  state('Priya speaking…');
+  state('Meena speaking…');
   if (vad) vad.paused = true;
   await speak(ta);
   if (!call.ended) {
@@ -778,7 +778,7 @@ async function customerSays(text, en) {
   showReplies(false);
   call.history.push({ role: 'customer', text });
   bubble('cust', text, en);
-  state('Priya is thinking…');
+  state('Meena is thinking…');
   let t;
   try { t = await api('/api/call/turn', { account_id: call.a.id, history: call.history }); }
   catch (err) { state(err.message); showReplies(true); return; }
@@ -798,7 +798,7 @@ async function finishCall() {
   call.saved = true;
   call.ended = true;
   showReplies(false);
-  const transcript = call.history.map((h) => `${h.role === 'agent' ? 'Priya' : 'Customer'}: ${h.text}`).join('\n');
+  const transcript = call.history.map((h) => `${h.role === 'agent' ? 'Meena' : 'Customer'}: ${h.text}`).join('\n');
   const o = call.outcome || {};
   try {
     await api('/api/relay/outcome', { account_id: call.a.id, transcript, outcome: o.outcome || undefined, promise_date: o.promise_date || undefined, amount: o.amount || undefined });
@@ -878,7 +878,7 @@ async function openCall(a) {
   const due = a.amountDue - Number(a.payment?.paid || 0);
   const first = String(a.name).split(' ')[0];
   call = { a, history: [], ended: false };
-  $('#callcard').innerHTML = `<h3>📞 ${esc(a.name)}</h3><div class="meta">Priya · collections team · Tamil · ${inr(due)} due · call #${Math.max(1, (queue.find((x) => x.id === a.id)?.attempts || a.attempts || 0) + 1)} · recorded</div>
+  $('#callcard').innerHTML = `<h3>📞 ${esc(a.name)}</h3><div class="meta">Meena · collections team · Tamil · ${inr(due)} due · call #${Math.max(1, (queue.find((x) => x.id === a.id)?.attempts || a.attempts || 0) + 1)} · recorded</div>
     <div id="callLog"></div>
     <div class="replies" id="replies" style="display:none">
       <div class="mic" id="mic">🎙 Listening: just speak in Tamil / Tanglish</div>
@@ -890,12 +890,12 @@ async function openCall(a) {
   const band = a.external?.band?.[0];
   if (band === 'A' || band === 'B') {
     await priyaSays(
-      `ஹலோ ${first}, நான் பிரியா பேசுறேன், loan team-லேருந்து. இந்த call record ஆகுது. ஒரு சின்ன reminder தான், உங்க EMI ${due} ரூபாய் due ஆகியிருக்கு. எப்போ கட்ட முடியும்?`,
-      `Hi ${first}, this is Priya from the loan team. This call is recorded. Just a small reminder: your EMI of ₹${due.toLocaleString('en-IN')} is due. When can you pay?`);
+      `ஹலோ ${first}, என் பேரு மீனா, loan team-லேருந்து பேசுறேன். இந்த call record ஆகுது. ஒரு சின்ன reminder தான், உங்க EMI ${due} ரூபாய் due ஆகியிருக்கு. எப்போ கட்ட முடியும்?`,
+      `Hi ${first}, my name is Meena, calling from the loan team. This call is recorded. Just a small reminder: your EMI of ₹${due.toLocaleString('en-IN')} is due. When can you pay?`);
   } else {
     await priyaSays(
-      `ஹலோ ${first}, நான் பிரியா பேசுறேன், loan team-லேருந்து. இந்த call record ஆகுது. உங்க EMI ${due} ரூபாய் pending-ஆ இருக்கு. இன்னைக்கு கட்ட முடியுமா?`,
-      `Hi ${first}, this is Priya from the loan team. This call is recorded. Your EMI of ₹${due.toLocaleString('en-IN')} is pending. Can you pay today?`);
+      `ஹலோ ${first}, என் பேரு மீனா, loan team-லேருந்து பேசுறேன். இந்த call record ஆகுது. உங்க EMI ${due} ரூபாய் pending-ஆ இருக்கு. இன்னைக்கு கட்ட முடியுமா?`,
+      `Hi ${first}, my name is Meena, calling from the loan team. This call is recorded. Your EMI of ₹${due.toLocaleString('en-IN')} is pending. Can you pay today?`);
   }
 }
 refresh();

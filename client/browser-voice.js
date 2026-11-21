@@ -32,7 +32,7 @@ export function createVoicePanel({ refresh, toast, onFallback }) {
     s.ended = true;
     if (!s.lines.length) { status('Call ended'); return; }
     status('Call ended · reading the conversation…');
-    const transcript = s.lines.map((l) => `${l.role === 'user' ? 'Customer' : 'Priya'}: ${l.text}`).join('\n');
+    const transcript = s.lines.map((l) => `${l.role === 'user' ? 'Customer' : 'Meena'}: ${l.text}`).join('\n');
     try {
       if (s.id) await request(`/api/browser-voice/sessions/${s.id}/finish`, { transcript }).catch(() => {});
       const r = await request('/api/relay/outcome', { account_id: s.accountId, transcript });
@@ -47,7 +47,7 @@ export function createVoicePanel({ refresh, toast, onFallback }) {
     if (current && !current.ended) { box.hidden = false; return; }
     const s = (current = { accountId: account.id, lines: [], ended: false, ending: false });
     card.innerHTML = `<h3>📞 ${account.name.replace(/[<>&]/g, '')}</h3>
-      <div class="meta">Priya · collections team · Tamil · call recorded</div>
+      <div class="meta">Meena · collections team · Tamil · call recorded</div>
       <div id="callLog"></div>
       <div class="callend"><span id="callState">Ringing…</span>
         <span><button class="btn ghost" id="muteCall" disabled>Mute</button> <button class="btn ghost" id="endVoice">End call</button></span></div>`;

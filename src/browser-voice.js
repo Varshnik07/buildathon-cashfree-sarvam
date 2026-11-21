@@ -26,10 +26,10 @@ export function mountBrowserVoice(app, { store, callPolicy, remaining, env = pro
     const floor = !reminder && callNo >= 2 ? Math.round((due * 0.75) / 100) * 100 : due;
     const first = String(a.name).split(' ')[0];
     const greeting = reminder
-      ? `ஹலோ ${first}, நான் பிரியா பேசுறேன், loan team-லேருந்து. இந்த call record ஆகுது. ஒரு சின்ன reminder தான், உங்க EMI ${due} ரூபாய் due ஆகியிருக்கு. எப்போ கட்ட முடியும்?`
-      : `ஹலோ ${first}, நான் பிரியா பேசுறேன், loan team-லேருந்து. இந்த call record ஆகுது. உங்க EMI ${due} ரூபாய் pending-ஆ இருக்கு. இன்னைக்கு கட்ட முடியுமா?`;
+      ? `ஹலோ ${first}, என் பேரு மீனா, loan team-லேருந்து பேசுறேன். இந்த call record ஆகுது. ஒரு சின்ன reminder தான், உங்க EMI ${due} ரூபாய் due ஆகியிருக்கு. எப்போ கட்ட முடியும்?`
+      : `ஹலோ ${first}, என் பேரு மீனா, loan team-லேருந்து பேசுறேன். இந்த call record ஆகுது. உங்க EMI ${due} ரூபாய் pending-ஆ இருக்கு. இன்னைக்கு கட்ட முடியுமா?`;
     store.upsertAccount({ id: a.id, attempts: callNo, lastCallAt: new Date().toISOString() });
-    store.logEvent('call_requested', a.id, { summary: `Priya calling ${a.name} in Tamil (call #${callNo}${reminder ? ', reminder' : ''})` });
+    store.logEvent('call_requested', a.id, { summary: `Meena calling ${a.name} in Tamil (call #${callNo}${reminder ? ', reminder' : ''})` });
     const config = {
       org_id: env.SARVAM_VOICE_ORG_ID, workspace_id: env.SARVAM_VOICE_WORKSPACE_ID,
       app_id: env.SARVAM_VOICE_APP_ID, user_identifier: a.id, user_identifier_type: 'custom',
