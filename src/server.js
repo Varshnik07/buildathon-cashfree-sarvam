@@ -348,17 +348,25 @@ app.post('/api/demo/:id/simulate', (req, res) => {
 
 
 // ---------- Live call: one conversation turn with "Priya" (Sarvam chat) ----------
-const PRIYA = (a, due, part) => `You are Priya, a friendly person from the lender's collections team, on a phone call with ${a.name}.
+const PRIYA = (a, due, part, reminder) => `You are Priya, a friendly person from the lender's collections team, on a phone call with ${a.name}.
 Speak casual, warm, spoken Tamil the way people talk on the phone (Tamil script; English words like EMI, link, UPI are fine).
 Keep every reply SHORT: at most 2 short sentences, under 25 words. Sound natural and human: no lists, no formal Tamil. Always fill reply_en.
 Do not say you are an AI or a bot. If the customer directly asks whether you are a robot or AI, answer honestly that you are the lender's automated assistant.
-Facts (use only these): amount due Rs ${due}; a promise date can be at most 7 days away.
+${reminder
+    ? `This customer usually pays on time (band ${reminder}). This is ONLY a friendly reminder call, not a collection push.
+Facts (use only these): amount due Rs ${due}.
+Flow: remind them the EMI is due, then ask when they will pay. If they want to pay now, send the link (action send_link).
+If they say not now, do NOT push and do NOT ask for a date within 7 days; just ask casually when they think they can pay.
+If they give a date, thank them, confirm it, and end (outcome "promise", set promise_date).
+If they say they don't know / not sure, say "okay, someone from our team will call you again", thank them and end (outcome "callback").
+Never offer part payment on a reminder call.`
+    : `Facts (use only these): amount due Rs ${due}; a promise date can be at most 7 days away.
 Goal: get the full amount paid today via the link, or a firm date (within 7 days) to pay the full amount.
 ${part
     ? `This is call number ${part.callNo} with this customer. Ask for the full amount first. Only if they say they cannot pay it all,
 you may offer: pay at least Rs ${part.min} (75%) today via the link, and the rest by a firm date within 7 days. Never go below Rs ${part.min}.`
     : `This is the first call. Do NOT offer or suggest part payment, minimum amounts or splitting the amount. If the customer offers to pay part,
-thank them, say the link is for the full amount, and ask for a date when they can pay it in full.`}
+thank them, say the link is for the full amount, and ask for a date when they can pay it in full.`}`}
 Rules: never threaten, shame or pressure; never ask for OTP, PIN or card details; payment only via the link.
 If they say they already paid: ask for the UTR / transaction number, do not ask for money again.
 If they mention hardship (hospital, job loss, death): be kind, say someone from the team will call to help, and end.
@@ -375,12 +383,21 @@ app.post('/api/call/turn', wrap(async (req, res) => {
   const history = (req.body.history || []).slice(-10).map((h) => ({ role: h.role === 'agent' ? 'assistant' : 'user', content: h.text }));
   // Part payment only from the 2nd call on, and at least 75% of what's due.
   const callNo = Math.max(1, a.attempts || 0);
-  const part = callNo >= 2 ? { callNo, min: Math.round((due * 0.75) / 100) * 100 } : null;
-  const raw = await sarvam.chat([{ role: 'system', content: `${PRIYA(a, due, part)}\nToday is ${new Date().toISOString().slice(0, 10)}.` }, ...history], { temperature: 0.5, maxTokens: 300 });
+  // Usual fast payers (band A/B from rank.py) get a soft reminder call instead of a collection call.
+  const band = a.external?.band?.[0];
+  const reminder = band === 'A' || band === 'B' ? band : null;
+  const part = !reminder && callNo >= 2 ? { callNo, min: Math.round((due * 0.75) / 100) * 100 } : null;
+  const raw = await sarvam.chat([{ role: 'system', content: `${PRIYA(a, due, part, reminder)}\nToday is ${new Date().toISOString().slice(0, 10)}.` }, ...history], { temperature: 0.5, maxTokens: 300 });
   const m = raw.replace(/<think>[\s\S]*?<\/think>/g, '').match(/\{[\s\S]*\}/);
   let out;
   try { out = JSON.parse(m[0]); } catch { out = { reply_ta: raw.trim().slice(0, 300), reply_en: '', action: 'none', outcome: null }; }
-  res.json({ ...out, call_no: callNo, part_min: part?.min || null });
+  // A promise date in the past ("10th" said on the 21st) means next month.
+  if (out.promise_date && /^\d{4}-\d{2}-\d{2}$/.test(out.promise_date)) {
+    const d = new Date(`${out.promise_date}T00:00:00`), today = new Date(new Date().toDateString());
+    while (d < today) d.setMonth(d.getMonth() + 1);
+    out.promise_date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  res.json({ ...out, call_no: callNo, part_min: part?.min || null, reminder: Boolean(reminder) });
 }));
 
 // ---------- Sarvam helpers (handy for testing from Postman / Relay) ----------

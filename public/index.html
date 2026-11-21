@@ -740,6 +740,7 @@ const QUICK = [
   { say: 'Salary 5th-க்கு வரும், அப்போ கட்டிடறேன்', en: 'Salary comes on the 5th, I will pay then' },
   { say: 'நான் already branch-ல கட்டிட்டேன்', en: 'I already paid at the branch' },
   { say: 'அம்மா hospital-ல இருக்காங்க, இப்போ முடியாது', en: 'Mother is in hospital, I cannot pay now' },
+  { say: 'தெரியலைங்க, இப்போ சொல்ல முடியாது', en: "I don't know, can't say now" },
 ];
 let call = null;
 async function speak(text) {
@@ -882,9 +883,16 @@ async function openCall(a) {
     <div class="callend"><span id="callState">Ringing…</span><button class="btn ghost" id="endCall">End call</button></div>`;
   $('#callbox').hidden = false;
   $('#replies').addEventListener('click', (e) => { const b = e.target.closest('[data-quick]'); if (b) customerSays(QUICK[b.dataset.quick].say, QUICK[b.dataset.quick].en); });
-  await priyaSays(
-    `ஹலோ ${first}, நான் பிரியா பேசுறேன், loan team-லேருந்து. இந்த call record ஆகுது. உங்க EMI ${due} ரூபாய் pending-ஆ இருக்கு. இன்னைக்கு கட்ட முடியுமா?`,
-    `Hi ${first}, this is Priya from the loan team. This call is recorded. Your EMI of ₹${due.toLocaleString('en-IN')} is pending. Can you pay today?`);
+  const band = a.external?.band?.[0];
+  if (band === 'A' || band === 'B') {
+    await priyaSays(
+      `ஹலோ ${first}, நான் பிரியா பேசுறேன், loan team-லேருந்து. இந்த call record ஆகுது. ஒரு சின்ன reminder தான், உங்க EMI ${due} ரூபாய் due ஆகியிருக்கு. எப்போ கட்ட முடியும்?`,
+      `Hi ${first}, this is Priya from the loan team. This call is recorded. Just a small reminder: your EMI of ₹${due.toLocaleString('en-IN')} is due. When can you pay?`);
+  } else {
+    await priyaSays(
+      `ஹலோ ${first}, நான் பிரியா பேசுறேன், loan team-லேருந்து. இந்த call record ஆகுது. உங்க EMI ${due} ரூபாய் pending-ஆ இருக்கு. இன்னைக்கு கட்ட முடியுமா?`,
+      `Hi ${first}, this is Priya from the loan team. This call is recorded. Your EMI of ₹${due.toLocaleString('en-IN')} is pending. Can you pay today?`);
+  }
 }
 refresh();
 loadProof();
