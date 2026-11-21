@@ -699,17 +699,14 @@ document.addEventListener('click', async (e) => {
     if (t.id === 'endCall') { stopListening(); if (call && !call.saved && call.history.length > 1) await finishCall(); $('#callbox').hidden = true; return refresh(); }
     if (t.dataset.call) {
       const acc = queue.find((x) => x.id === t.dataset.call) || await api(`/api/accounts/${encodeURIComponent(t.dataset.call)}`);
-      try { await api(`/api/accounts/${encodeURIComponent(t.dataset.call)}/call`, {}); }
-      catch (err) { if (!/Relay/.test(err.message)) return toast(err.message); }
-      closeDrawer(); refresh(); return openCall(acc);
+      closeDrawer();
+      return window.startLiveCall ? window.startLiveCall(acc) : legacyCall(acc);
     }
     if (t.dataset.link) { const r = await api('/api/relay/payment-link', { account_id: t.dataset.link, min_partial: true }); toast('Payment link created (part payment allowed)'); if (r.link_url) window.open(r.link_url, '_blank', 'noopener'); return refresh(); }
     if (t.id === 'callNext') {
       const next = queue.find((a) => a.rank.bucket === 'call');
       if (!next) return toast('Nobody left for the AI to call');
-      await api(`/api/accounts/${encodeURIComponent(next.id)}/call`, {});
-      toast(`AI agent is calling ${next.name}`);
-      return refresh();
+      return window.startLiveCall ? window.startLiveCall(next) : legacyCall(next);
     }
     if (t.id === 'runAgent') {
       const j = await api('/api/ranking-agent/run', { limit: 25 });
@@ -870,6 +867,13 @@ async function sendSpeech(chunks) {
   if (vad) vad.paused = false;
   state('Listening…');
 }
+// Built-in call (our own speech-to-text → chat → voice loop). Used when the Samvaad live voice is unavailable.
+async function legacyCall(acc) {
+  try { await api(`/api/accounts/${encodeURIComponent(acc.id)}/call`, {}); }
+  catch (err) { if (!/Relay/.test(err.message)) return toast(err.message); }
+  refresh();
+  return openCall(acc);
+}
 async function openCall(a) {
   const due = a.amountDue - Number(a.payment?.paid || 0);
   const first = String(a.name).split(' ')[0];
@@ -898,6 +902,11 @@ refresh();
 loadProof();
 setInterval(() => { if (!openMenu) refresh(); }, 3000);
 setInterval(() => { moved = {}; }, 15000);
+</script>
+<script type="module">
+// Live voice through the Samvaad agent; falls back to the built-in call if it can't connect.
+import { createVoicePanel } from '/browser-voice.js';
+window.startLiveCall = createVoicePanel({ refresh: () => refresh(), toast: (m) => toast(m), onFallback: (acc) => legacyCall(acc) });
 </script>
 </body>
 </html>
