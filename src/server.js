@@ -14,6 +14,7 @@ import { rankAccounts, scoreAccount, fairnessCheck, callPolicy } from './rank.js
 import { extractSignals } from './signals.js';
 import { importBook } from './importer.js';
 import * as rankingAgent from './rankingAgent.js';
+import { historyFor } from './history.js';
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -104,7 +105,7 @@ app.get('/api/accounts', (_req, res) => res.json(store.listAccounts()));
 app.get('/api/accounts/:id', (req, res) => {
   const a = store.getAccount(req.params.id);
   if (!a) return res.status(404).json({ error: 'not found' });
-  res.json({ ...a, rank: scoreAccount(a), policy: callPolicy(a), events: store.listEvents(a.id) });
+  res.json({ ...a, rank: scoreAccount(a), policy: callPolicy(a), events: store.listEvents(a.id), history: historyFor(a.id) });
 });
 app.post('/api/accounts/import', (req, res) => {
   store.reset(req.body.accounts || []);

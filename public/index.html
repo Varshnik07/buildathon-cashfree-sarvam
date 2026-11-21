@@ -188,6 +188,19 @@ table.t tr:last-child td{border-bottom:0}
 .facts div{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
 .facts span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .dacts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.drawer{width:min(540px,100%)}
+.pstrip{display:flex;gap:4px;flex-wrap:wrap;margin:4px 0 8px}
+.pstrip i{width:18px;height:18px;border-radius:5px;display:inline-block}
+.pstrip i.ok{background:#45C98A} .pstrip i.late{background:var(--gold)} .pstrip i.bad{background:#E0705F} .pstrip i.miss{background:var(--line)}
+table.h{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+table.h td,table.h th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left}
+table.h th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.late-t{color:var(--warn);font-weight:600} .bad-t{color:var(--bad);font-weight:600} .ok-t{color:var(--ok)}
+.contact{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.contact b{font-weight:600}
+.contact .sub{color:var(--muted);font-size:12px}
+.pill-s{font-size:10px;font-weight:600;text-transform:uppercase;padding:1px 6px;border-radius:999px;margin-left:4px}
+.pill-s.kept{background:var(--ok-soft);color:var(--ok)} .pill-s.broken{background:var(--bad-soft);color:var(--bad)} .pill-s.pending{background:var(--blue-soft);color:var(--blue)}
 
 .toast{position:fixed;right:24px;bottom:24px;z-index:50;background:var(--char);color:var(--gold);padding:11px 18px;border-radius:var(--r-pill);font-weight:600;font-size:13px;box-shadow:0 12px 30px -8px rgba(0,0,0,.5);transform:translateY(120%);opacity:0;transition:.35s;max-width:min(560px,calc(100% - 48px))}
 .toast.show{transform:none;opacity:1}
@@ -555,8 +568,33 @@ async function openDrawer(id, quiet) {
       ${lo ? `<div style="grid-column:1/-1"><span>Last outcome</span>${esc(lo.outcome.replace(/_/g, ' '))}${lo.promiseDate ? ` · ${fmtDay(lo.promiseDate)}` : ''}${lo.note ? ` · “${esc(lo.note)}”` : ''}${lo.source ? ` <i style="color:var(--muted)">(${esc(lo.source)})</i>` : ''}</div>` : ''}
     </div></div>
     ${a.issues?.length ? `<div class="sec"><h4>Data issues (shown, not silently fixed)</h4><ul class="issues">${a.issues.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-    <div class="sec"><h4>Decision history</h4>${ev.length ? `<ul class="timeline">${ev.map((e) => `<li>${esc(e.data.summary)}<time>${new Date(e.at).toLocaleString('en-IN')}</time></li>`).join('')}</ul>` : '<p style="color:var(--muted)">Nothing yet.</p>'}</div>`;
+    ${historyHTML(a.history)}
+    <div class="sec"><h4>Today in this app</h4>${ev.length ? `<ul class="timeline">${ev.map((e) => `<li>${esc(e.data.summary)}<time>${new Date(e.at).toLocaleString('en-IN')}</time></li>`).join('')}</ul>` : '<p style="color:var(--muted)">Nothing yet.</p>'}</div>`;
   if (!quiet) { $('#drawer').classList.add('open'); $('#scrim').classList.add('open'); }
+}
+function historyHTML(H) {
+  if (!H || (!H.payments.total && !H.contacts.length && !H.dues)) return '';
+  const dot = (p) => (!p.paid ? 'miss' : p.daysLate > 30 ? 'bad' : p.daysLate > 0 ? 'late' : 'ok');
+  const d = H.dues, pr = H.profile;
+  const loan = d || pr ? `<div class="sec"><h4>Loan & current due</h4><div class="facts">
+      ${pr ? `<div><span>Loan</span>${esc(pr.loanType)} · ${inr(pr.loanAmount)}</div><div><span>EMI</span>${inr(pr.emi)}</div>` : ''}
+      ${d ? `<div><span>Overdue</span>${d.emisOverdue} EMI · ${d.daysOverdue} days</div><div><span>Balance due</span>${inr(d.balance)}${d.received ? ` (paid ${inr(d.received)})` : ''}</div>
+      <div><span>Due date</span>${fmtDay(d.dueDate)}</div><div><span>Next EMI</span>${d.nextEmi ? fmtDay(d.nextEmi) : '—'}</div>` : ''}
+      ${pr ? `<div><span>Prefers</span>${esc(pr.language)} · ${esc(pr.channel)}</div><div><span>Work</span>${esc(pr.occupation || pr.incomeType || '—')}</div>` : ''}
+    </div></div>` : '';
+  const pays = H.payments.total ? `<div class="sec"><h4>Payment history · ${H.payments.onTime} of ${H.payments.total} on time</h4>
+      <div class="pstrip" title="Last 12 instalments, newest first">${H.payments.recent.map((p) => `<i class="${dot(p)}" title="Due ${p.due} · ${p.paid ? `paid ${p.paid}` : 'not paid'}${p.daysLate ? ` · ${p.daysLate}d late` : ''}"></i>`).join('')}</div>
+      <table class="h"><tr><th>Due</th><th>Paid</th><th>Amount</th><th>Timing</th></tr>
+      ${H.payments.recent.map((p) => `<tr><td>${fmtDay(p.due)} ${p.due.slice(0, 4)}</td><td>${p.paid ? fmtDay(p.paid) : '—'}</td>
+        <td>${inr(Math.round(p.amountPaid || 0))} / ${inr(Math.round(p.amountDue || 0))}</td>
+        <td class="${dot(p) === 'ok' ? 'ok-t' : dot(p) === 'late' ? 'late-t' : 'bad-t'}">${!p.paid ? 'not paid' : p.daysLate ? `${p.daysLate}d late` : p.daysEarly ? `${p.daysEarly}d early` : 'on time'}</td></tr>`).join('')}
+      </table></div>` : '';
+  const contacts = H.contacts.length ? `<div class="sec"><h4>Past contacts · ${H.contacts.length}</h4>
+      ${H.contacts.map((c) => `<div class="contact"><b>${esc(c.outcome.replace(/_/g, ' '))}</b>
+        ${c.promiseStatus ? `<span class="pill-s ${esc(c.promiseStatus)}">${esc(c.promiseStatus)}</span>` : ''}
+        <div class="sub">${fmtDay(c.date)} · ${esc(c.channel)} · ${esc((c.by || '').replace(/_/g, ' '))}${c.promiseDate ? ` · promised ${c.promiseAmount ? inr(c.promiseAmount) + ' ' : ''}by ${fmtDay(c.promiseDate)}` : ''}</div>
+        ${c.notes ? `<div class="sub">“${esc(c.notes)}”</div>` : ''}</div>`).join('')}</div>` : '';
+  return loan + pays + contacts;
 }
 function closeDrawer() { drawerId = null; $('#drawer').classList.remove('open'); $('#scrim').classList.remove('open'); }
 
