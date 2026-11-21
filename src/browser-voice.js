@@ -25,16 +25,15 @@ export function mountBrowserVoice(app, { store, callPolicy, remaining, env = pro
     const callNo = (a.attempts || 0) + 1;
     const floor = !reminder && callNo >= 2 ? Math.round((due * 0.75) / 100) * 100 : due;
     const first = String(a.name).split(' ')[0];
-    const greeting = reminder
-      ? `ஹலோ ${first}, என் பேரு மீனா, loan team-லேருந்து பேசுறேன். இந்த call record ஆகுது. ஒரு சின்ன reminder தான், உங்க EMI ${due} ரூபாய் due ஆகியிருக்கு. எப்போ கட்ட முடியும்?`
-      : `ஹலோ ${first}, என் பேரு மீனா, loan team-லேருந்து பேசுறேன். இந்த call record ஆகுது. உங்க EMI ${due} ரூபாய் pending-ஆ இருக்கு. இன்னைக்கு கட்ட முடியுமா?`;
+    // Right party first: confirm the name before any amount (privacy rule). The agent instructions take it from here.
+    const greeting = `ஹலோ, ${first}-ஆ பேசுறீங்க? என் பேரு மீனா, loan team-லேருந்து பேசுறேன். இந்த call record ஆகுது.`;
     store.upsertAccount({ id: a.id, attempts: callNo, lastCallAt: new Date().toISOString() });
     store.logEvent('call_requested', a.id, { summary: `Meena calling ${a.name} in Tamil (call #${callNo}${reminder ? ', reminder' : ''})` });
     const config = {
       org_id: env.SARVAM_VOICE_ORG_ID, workspace_id: env.SARVAM_VOICE_WORKSPACE_ID,
       app_id: env.SARVAM_VOICE_APP_ID, user_identifier: a.id, user_identifier_type: 'custom',
       interaction_type: 'call', input_sample_rate: 16000, output_sample_rate: 16000,
-      agent_variables: { account_id: a.id, customer_name: a.name, amount_due: due, part_payment_floor: floor },
+      agent_variables: { account_id: a.id, customer_name: a.name, amount_due: due, part_payment_floor: floor, call_type: reminder ? 'reminder' : 'collection' },
       initial_bot_message: greeting,
       ...(env.SARVAM_VOICE_VERSION ? { version: Number(env.SARVAM_VOICE_VERSION) } : {}),
     };

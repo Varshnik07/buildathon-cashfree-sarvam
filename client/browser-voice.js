@@ -36,6 +36,11 @@ export function createVoicePanel({ refresh, toast, onFallback }) {
     try {
       if (s.id) await request(`/api/browser-voice/sessions/${s.id}/finish`, { transcript }).catch(() => {});
       const r = await request('/api/relay/outcome', { account_id: s.accountId, transcript });
+      // The agent promises a link after the call; send it if they agreed to pay.
+      if (['agreed_to_pay', 'partial'].includes(r.outcome?.outcome) || /\blink\b/i.test(transcript) && r.outcome?.outcome === 'promise') {
+        const l = await request('/api/relay/payment-link', { account_id: s.accountId }).catch(() => null);
+        if (l?.link_url) { const d = document.createElement('div'); d.className = 'bub agent'; d.textContent = `Payment link sent: ${l.link_url}`; $('#callLog').appendChild(d); }
+      }
       status(`Call ended · outcome: ${String(r.outcome?.outcome || 'saved').replace(/_/g, ' ')}${r.outcome?.promiseDate ? ` (${r.outcome.promiseDate})` : ''} · list re-forming`);
     } catch (err) { status(`Call ended · ${err.message}`); }
     await refresh();
