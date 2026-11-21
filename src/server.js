@@ -22,6 +22,11 @@ let lastImport = null;
 app.use(express.json({ limit: '20mb', verify: (req, _res, buf) => { req.rawBody = buf.toString(); } }));
 app.use(express.text({ type: ['text/csv', 'text/plain'], limit: '20mb' }));
 app.use(express.static('public'));
+// Log every call from Relay (directly or via the Lambda forwarder) so we can see it arrive.
+app.use('/api/relay', (req, _res, next) => {
+  console.log(`${new Date().toISOString()} RELAY ${req.method} ${req.originalUrl} ua=${req.get('user-agent') || '-'}`);
+  next();
+});
 
 const wrap = (fn) => (req, res) =>
   Promise.resolve(fn(req, res)).catch((err) => {
@@ -114,8 +119,9 @@ app.post('/api/accounts/upload', upload.single('file'), (req, res) => {
 });
 app.get('/api/import-report', (_req, res) => res.json(lastImport));
 
-app.post('/api/reset', (_req, res) => {
-  const sample = JSON.parse(fs.readFileSync('data/sample-accounts.json', 'utf8'));
+app.post('/api/reset', (req, res) => {
+  const file = req.body?.book === 'sample' || !fs.existsSync('data/teammate-accounts.json') ? 'data/sample-accounts.json' : 'data/teammate-accounts.json';
+  const sample = JSON.parse(fs.readFileSync(file, 'utf8'));
   store.reset(sample.accounts);
   lastImport = null;
   store.logEvent('book_imported', null, { summary: `Demo reset: ${sample.accounts.length} sample accounts loaded` });
@@ -124,11 +130,14 @@ app.post('/api/reset', (_req, res) => {
 
 app.get('/api/events', (_req, res) => res.json(store.listEvents()));
 
-app.get('/api/queue', (_req, res) => {
+// ?limit=N keeps the screen fast on big books: top N per group, stats always cover everyone.
+app.get('/api/queue', (req, res) => {
   const ranked = rankAccounts(store.listAccounts());
   const count = (b) => ranked.filter((a) => a.rank.bucket === b).length;
+  const limit = Number(req.query.limit) || Infinity;
+  const seen = {};
   res.json({
-    accounts: ranked,
+    accounts: ranked.filter((a) => (seen[a.rank.bucket] = (seen[a.rank.bucket] || 0) + 1) <= limit),
     stats: {
       total: ranked.length,
       toCall: count('call'), scheduled: count('scheduled'), verify: count('verify'), human: count('human'), done: count('done'),

@@ -371,7 +371,7 @@ const GROUPS = {
 };
 const FILTERS = [['all', 'All'], ['call', 'AI calls'], ['scheduled', 'Promised'], ['human', 'Human team'], ['done', 'Paid']];
 const TAG = { scheduled: 'Promise', verify: 'Verify', human: 'Person', done: 'Paid' };
-let prevPos = {}, moved = {}, openMenu = null, queue = [], drawerId = null, filter = 'all', view = 'queue';
+let lastStats = null, prevPos = {}, moved = {}, openMenu = null, queue = [], drawerId = null, filter = 'all', view = 'queue';
 
 function setView(v) {
   view = VIEWS[v] ? v : 'queue';
@@ -427,7 +427,7 @@ function rowHTML(a) {
 }
 
 function renderTabs(accounts) {
-  const c = (f) => accounts.filter((a) => f === 'all' || a.rank.bucket === f || (f === 'human' && a.rank.bucket === 'verify')).length;
+  const st = lastStats || {}; const c = (f) => ({ all: st.total, call: st.toCall, scheduled: st.scheduled, human: (st.verify || 0) + (st.human || 0), done: st.done }[f] ?? 0);
   $('#tabs').innerHTML = FILTERS.map(([k, label]) => `<button class="tab ${filter === k ? 'active' : ''}" role="tab" aria-selected="${filter === k}" data-filter="${k}">${label} <b>${c(k)}</b></button>`).join('');
 }
 
@@ -497,8 +497,9 @@ function renderConn(h) {
 
 async function refresh() {
   try {
-    const [q, events, fair, health, imp] = await Promise.all([api('/api/queue'), api('/api/events'), api('/api/fairness'), api('/health'), api('/api/import-report')]);
+    const [q, events, fair, health, imp] = await Promise.all([api('/api/queue?limit=60'), api('/api/events'), api('/api/fairness'), api('/health'), api('/api/import-report')]);
     queue = q.accounts;
+    lastStats = q.stats;
     renderTabs(q.accounts);
     renderQueue(q.accounts);
     renderFeed(events);

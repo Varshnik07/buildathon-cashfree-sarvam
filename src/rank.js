@@ -68,6 +68,40 @@ export function scoreAccount(a, now = today()) {
     return { bucket: 'human', score: 0, parts: [], reasons: [`No answer after ${attempts} calls. Stop calling; human team decides next step`] };
   }
 
+  // Borrowers ranked by the teammate's rank.py: use its score, band, queue and reason,
+  // then apply live events (payment attempts, part payments, lapsed promises) on top.
+  const ext = a.external;
+  if (ext) {
+    const future = out.outcome === 'promise' && out.promiseDate && -daysBetween(out.promiseDate, now) > 0;
+    if (future) return { bucket: 'scheduled', score: Math.round(ext.priority), parts: [], reasons: [`Promised to pay on ${fmt(out.promiseDate)}${out.note ? ` ("${out.note}")` : ''}. AI calls back then`, ext.reason] };
+    const live = Boolean(a.lastOutcome || sig.paymentFailedAt || pay.status);
+    if (!live) {
+      const map = { verify_payment: 'verify', human_desk: 'human', skip_trace: 'human', field_or_human: 'human', hold: 'scheduled', closed: 'done' };
+      const why = {
+        verify_payment: 'Says already paid. Collect UTR / reference and verify first',
+        human_desk: 'Dispute or hardship. A person handles it, no collection push',
+        skip_trace: 'Wrong number. Find an alternate contact',
+        field_or_human: 'High risk and 60+ days overdue. Field visit / human call',
+        hold: `On hold until ${ext.holdUntil ? fmt(ext.holdUntil) : 'later'} (${(ext.ruleId || '').replace(/^R\d+_/, '').replace(/_/g, ' ')})`,
+        closed: 'Nothing overdue',
+      };
+      if (map[ext.queue]) return { bucket: map[ext.queue], score: Math.round(ext.priority), parts: [], reasons: [why[ext.queue], ext.reason] };
+    }
+    const band = ext.band.replace(/_/g, ' ').replace(/^(\w) /, '$1 · ');
+    const xparts = [{ label: `Band ${band} (pay-speed ${ext.payScore})`, points: ext.priority }];
+    if (sig.paymentFailedAt) xparts.push({ label: `Tried to pay on ${fmt(sig.paymentFailedAt)} but it failed`, points: WEIGHTS.triedToPay });
+    if (pay.status === 'PARTIALLY_PAID') xparts.push({ label: `Part paid ₹${pay.paid} of ₹${pay.amount}`, points: WEIGHTS.partlyPaid });
+    if (out.outcome === 'refused') xparts.push({ label: 'Refused last call', points: WEIGHTS.refused });
+    if (out.outcome === 'no_answer') xparts.push({ label: `No answer (${attempts || 1}×)`, points: WEIGHTS.perMissedCall * (attempts || 1) });
+    if (out.outcome === 'promise' && out.promiseDate) xparts.push({ label: `Promise lapsed on ${fmt(out.promiseDate)}`, points: WEIGHTS.promiseDue });
+    const lead = xparts.length > 1 ? xparts.at(-1).label : null;
+    return {
+      bucket: 'call', score: clamp(Math.round(xparts.reduce((s, p) => s + p.points, 0))),
+      reasons: [lead, ext.reason, `Band ${band}`].filter(Boolean),
+      parts: xparts.map((p) => ({ ...p, points: Math.round(p.points) })),
+    };
+  }
+
   const onTime = (h.onTimeLast6 ?? 3) / 6;
   // Some people never promise but always pay: judge them by what they actually paid.
   const reliability = h.promisesMade ? h.promisesKept / h.promisesMade : onTime;
