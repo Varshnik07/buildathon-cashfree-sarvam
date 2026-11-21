@@ -204,6 +204,17 @@ table.h th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:va
 .pill-s{font-size:10px;font-weight:600;text-transform:uppercase;padding:1px 6px;border-radius:999px;margin-left:4px}
 .pill-s.kept{background:var(--ok-soft);color:var(--ok)} .pill-s.broken{background:var(--bad-soft);color:var(--bad)} .pill-s.pending{background:var(--blue-soft);color:var(--blue)}
 
+.callbox{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(20,18,12,.45)}
+.callcard{width:min(520px,calc(100% - 32px));max-height:88vh;overflow:auto;background:var(--char);color:var(--char-text);border-radius:22px;padding:20px 22px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6)}
+.callcard h3{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.callcard .meta{color:var(--char-muted);font-size:13px;margin:2px 0 12px}
+.bub{padding:10px 12px;border-radius:14px;margin:8px 0;font-size:14px;max-width:88%}
+.bub.agent{background:var(--char-2)} .bub.cust{background:var(--gold);color:var(--char);margin-left:auto}
+.bub small{display:block;color:var(--char-muted);font-size:11px;margin-top:3px} .bub.cust small{color:#5a4100}
+.replies{display:grid;gap:6px;margin-top:12px}
+.replies button{background:var(--char-2);border:1px solid var(--char-line);color:var(--char-text);border-radius:12px;padding:9px 12px;text-align:left;font-size:13px}
+.replies button:hover{border-color:var(--gold);color:var(--gold)}
+.callend{margin-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--char-muted)}
 .toast{position:fixed;right:24px;bottom:24px;z-index:50;background:var(--char);color:var(--gold);padding:11px 18px;border-radius:var(--r-pill);font-weight:600;font-size:13px;box-shadow:0 12px 30px -8px rgba(0,0,0,.5);transform:translateY(120%);opacity:0;transition:.35s;max-width:min(560px,calc(100% - 48px))}
 .toast.show{transform:none;opacity:1}
 
@@ -351,6 +362,7 @@ table.h th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:va
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-label="Borrower details"></aside>
+<div class="callbox" id="callbox" hidden><div class="callcard" id="callcard"></div></div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -682,7 +694,13 @@ document.addEventListener('click', async (e) => {
     if (t.dataset.filter) { filter = t.dataset.filter; return refresh(); }
     if (t.dataset.menu) { openMenu = openMenu === t.dataset.menu ? null : t.dataset.menu; return refresh(); }
     if (t.dataset.sim) { openMenu = null; const r = await api(`/api/demo/${encodeURIComponent(t.dataset.id)}/simulate`, { type: t.dataset.sim }); toast(r.summary); return refresh(); }
-    if (t.dataset.call) { await api(`/api/accounts/${encodeURIComponent(t.dataset.call)}/call`, {}); toast('AI agent is calling in Tamil'); return refresh(); }
+    if (t.id === 'endCall') { $('#callbox').hidden = true; return refresh(); }
+    if (t.dataset.call) {
+      const acc = queue.find((x) => x.id === t.dataset.call) || await api(`/api/accounts/${encodeURIComponent(t.dataset.call)}`);
+      try { await api(`/api/accounts/${encodeURIComponent(t.dataset.call)}/call`, {}); }
+      catch (err) { if (!/Relay/.test(err.message)) return toast(err.message); }
+      closeDrawer(); refresh(); return openCall(acc);
+    }
     if (t.dataset.link) { const r = await api('/api/relay/payment-link', { account_id: t.dataset.link, min_partial: true }); toast('Payment link created (part payment allowed)'); if (r.link_url) window.open(r.link_url, '_blank', 'noopener'); return refresh(); }
     if (t.id === 'callNext') {
       const next = queue.find((a) => a.rank.bucket === 'call');
@@ -713,6 +731,62 @@ drop.addEventListener('drop', (e) => uploadFile(e.dataTransfer.files[0]));
 window.addEventListener('hashchange', () => setView(location.hash.slice(1)));
 
 setView(location.hash.slice(1) || 'queue');
+
+// ---------- In-app Tamil voice call (Sarvam TTS) ----------
+const REPLIES = [
+  { say: 'Ippo full-ah kattuven', en: 'I will pay in full now', agent: 'நன்றி! முழு தொகைக்கான பணம் செலுத்தும் லிங்க் இப்போது அனுப்புகிறேன்.', agentEn: 'Thank you! Sending the payment link for the full amount now.', link: true, outcome: 'agreed_to_pay', transcript: 'I will pay the full amount now, send the link' },
+  { say: 'Paathi ippo, meethi salary 5th-ku', en: 'Half now, rest after salary on the 5th', agent: 'சரி. பகுதி பணத்திற்கு லிங்க் அனுப்புகிறேன். மீதியை 5ஆம் தேதி செலுத்துங்கள்.', agentEn: 'Okay. Sending a part-payment link. Please pay the rest on the 5th.', link: true, outcome: 'partial', fifth: true, transcript: 'salary 5th-ku varum, appo paathi ippo kattuven, meethi 5th-ku' },
+  { say: 'Naan already branch-la kattiten', en: 'I already paid at the branch', agent: 'சரி. உங்கள் UTR எண்ணைச் சொல்லுங்கள். எங்கள் குழு சரிபார்க்கும்.', agentEn: 'Okay. Please share your UTR number. Our team will verify it.', outcome: 'paid_claim', transcript: 'naan already branch-la kattiten, paid at branch yesterday' },
+  { say: 'Amma hospital-la irukanga, ippo mudiyathu', en: 'Mother is in hospital, I cannot pay now', agent: 'மன்னிக்கவும். எங்கள் குழுவிலிருந்து ஒருவர் உங்களை அழைத்து உதவுவார்.', agentEn: 'Sorry to hear that. A person from our team will call you to help.', outcome: 'hardship', note: 'mother in hospital', transcript: 'Amma hospital-la irukanga, ippo kattamudiyathu' },
+];
+let speaking = Promise.resolve();
+async function speak(text, lang) {
+  try {
+    const r = await fetch('/api/sarvam/tts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, language_code: lang || 'ta-IN' }) });
+    if (!r.ok) return;
+    const a = new Audio(URL.createObjectURL(await r.blob()));
+    await new Promise((res) => { a.onended = res; a.onerror = res; a.play().catch(res); });
+  } catch { /* voice is a bonus; transcript still shows */ }
+}
+function bubble(who, text, en) {
+  const d = document.createElement('div');
+  d.className = `bub ${who}`;
+  d.innerHTML = `${esc(text)}${en ? `<small>${esc(en)}</small>` : ''}`;
+  $('#callLog').appendChild(d);
+  d.scrollIntoView({ block: 'end', behavior: 'smooth' });
+}
+async function openCall(a) {
+  const due = a.amountDue - Number(a.payment?.paid || 0);
+  $('#callcard').innerHTML = `<h3>📞 ${esc(a.name)}</h3><div class="meta">AI agent · Tamil (Sarvam voice) · ${inr(due)} due · call recorded</div>
+    <div id="callLog"></div><div class="replies" id="replies"></div>
+    <div class="callend"><span id="callState">Connecting…</span><button class="btn ghost" id="endCall">End call</button></div>`;
+  $('#callbox').hidden = false;
+  const open = `வணக்கம் ${a.name}. நான் உங்கள் கடன் நிறுவனத்தின் AI உதவியாளர். இந்த அழைப்பு பதிவு செய்யப்படுகிறது. உங்கள் நிலுவைத் தொகை ${due} ரூபாய். இன்று செலுத்த முடியுமா?`;
+  bubble('agent', open, `Hello ${a.name}. I'm your lender's AI assistant. This call is recorded. Your due is ₹${due.toLocaleString('en-IN')}. Can you pay today?`);
+  $('#callState').textContent = 'Agent speaking…';
+  await speak(open);
+  $('#callState').textContent = 'Customer replies:';
+  $('#replies').innerHTML = REPLIES.map((r, i) => `<button data-reply="${i}">“${esc(r.say)}” <span style="color:var(--char-muted)">· ${esc(r.en)}</span></button>`).join('');
+  $('#replies').onclick = async (e) => {
+    const b = e.target.closest('[data-reply]');
+    if (!b) return;
+    const r = REPLIES[b.dataset.reply];
+    $('#replies').innerHTML = '';
+    bubble('cust', r.say, r.en);
+    bubble('agent', r.agent, r.agentEn);
+    $('#callState').textContent = 'Agent speaking…';
+    await speak(r.agent);
+    try {
+      if (r.link) { const l = await api('/api/relay/payment-link', { account_id: a.id, min_partial: true }); bubble('agent', `Payment link sent: ${l.link_url}`, 'Cashfree sandbox link, part payment allowed'); }
+      const d = new Date(); const fifth = new Date(d.getFullYear(), d.getMonth() + (d.getDate() >= 5 ? 1 : 0), 5);
+      await api('/api/relay/outcome', { account_id: a.id, outcome: r.outcome, note: r.note, transcript: r.transcript,
+        promise_date: r.fifth ? `${fifth.getFullYear()}-${String(fifth.getMonth() + 1).padStart(2, '0')}-05` : undefined });
+      $('#callState').textContent = 'Call ended · outcome saved, list re-forming';
+    } catch (err) { $('#callState').textContent = err.message; }
+    refresh();
+  };
+}
+
 refresh();
 loadProof();
 setInterval(() => { if (!openMenu) refresh(); }, 3000);
