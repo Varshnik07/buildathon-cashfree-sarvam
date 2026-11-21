@@ -346,6 +346,35 @@ app.post('/api/demo/:id/simulate', (req, res) => {
   res.json({ ok: true, summary });
 });
 
+
+// ---------- Live call: one conversation turn with "Priya" (Sarvam chat) ----------
+const PRIYA = (a, due, floor) => `You are Priya, a friendly person from the lender's collections team, on a phone call with ${a.name}.
+Speak casual, warm, spoken Tamil the way people talk on the phone (Tamil script; English words like EMI, link, UPI are fine).
+Keep every reply SHORT: at most 2 short sentences, under 25 words. Sound natural and human: no lists, no formal Tamil. Always fill reply_en.
+Do not say you are an AI or a bot. If the customer directly asks whether you are a robot or AI, answer honestly that you are the lender's automated assistant.
+Facts (use only these): amount due Rs ${due}; smallest part payment Rs ${floor}; a promise date can be at most 7 days away.
+Goal: get payment today via a link, or a part payment plus a firm date for the rest.
+Rules: never threaten, shame or pressure; never ask for OTP, PIN or card details; payment only via the link.
+If they say they already paid: ask for the UTR / transaction number, do not ask for money again.
+If they mention hardship (hospital, job loss, death): be kind, say someone from the team will call to help, and end.
+Reply with ONLY JSON:
+{"reply_ta":"what you say in Tamil","reply_en":"English meaning","action":"none|send_link|end",
+ "outcome":null or one of "agreed_to_pay","partial","promise","paid_claim","hardship","refused","callback",
+ "promise_date":"YYYY-MM-DD or null","amount":number or null}
+Use action "send_link" when they agree to pay something now; "end" when the conversation is done (set outcome).`;
+
+app.post('/api/call/turn', wrap(async (req, res) => {
+  const a = store.getAccount(resolveId(req.body?.account_id));
+  if (!a) return res.status(404).json({ error: 'not found' });
+  const due = remaining(a);
+  const history = (req.body.history || []).slice(-10).map((h) => ({ role: h.role === 'agent' ? 'assistant' : 'user', content: h.text }));
+  const raw = await sarvam.chat([{ role: 'system', content: `${PRIYA(a, due, partFloor(a))}\nToday is ${new Date().toISOString().slice(0, 10)}.` }, ...history], { temperature: 0.5, maxTokens: 600 });
+  const m = raw.replace(/<think>[\s\S]*?<\/think>/g, '').match(/\{[\s\S]*\}/);
+  let out;
+  try { out = JSON.parse(m[0]); } catch { out = { reply_ta: raw.trim().slice(0, 300), reply_en: '', action: 'none', outcome: null }; }
+  res.json(out);
+}));
+
 // ---------- Sarvam helpers (handy for testing from Postman / Relay) ----------
 app.post('/api/sarvam/stt', upload.single('file'), wrap(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'send audio as multipart field "file"' });
@@ -355,7 +384,9 @@ app.post('/api/sarvam/stt', upload.single('file'), wrap(async (req, res) => {
 }));
 
 app.post('/api/sarvam/tts', wrap(async (req, res) => {
-  const wav = await sarvam.textToSpeech(req.body.text, { languageCode: req.body.language_code || 'ta-IN', speaker: req.body.speaker });
+  const wav = await sarvam.textToSpeech(req.body.text, {
+    languageCode: req.body.language_code || 'ta-IN', speaker: req.body.speaker || 'priya', pace: Number(req.body.pace) || 1.2,
+  });
   res.type('audio/wav').send(wav);
 }));
 
