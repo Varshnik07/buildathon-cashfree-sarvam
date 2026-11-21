@@ -145,11 +145,13 @@ app.get('/api/queue', (req, res) => {
   const limit = Number(req.query.limit) || Infinity;
   const seen = {};
   res.json({
-    accounts: ranked.filter((a) => (seen[a.rank.bucket] = (seen[a.rank.bucket] || 0) + 1) <= limit),
+    accounts: req.query.agent ? ranked.filter((a) => a.rank.agent || a.agent)
+      : ranked.filter((a) => (seen[a.rank.bucket] = (seen[a.rank.bucket] || 0) + 1) <= limit),
     stats: {
       total: ranked.length,
       toCall: count('call'), scheduled: count('scheduled'), verify: count('verify'), human: count('human'), done: count('done'),
       explore: ranked.filter((a) => a.rank.explore).length,
+      agent: ranked.filter((a) => a.rank.agent || a.agent).length,
       withIssues: ranked.filter((a) => a.issues?.length).length,
       collected: ranked.reduce((s, a) => s + Number(a.payment?.paid || 0), 0),
       outstanding: ranked.reduce((s, a) => s + remaining(a), 0),

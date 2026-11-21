@@ -370,7 +370,7 @@ const GROUPS = {
   human: ['Human team · needs a person', 'hardship, unreachable or bad data'],
   done: ['Paid', ''],
 };
-const FILTERS = [['all', 'All'], ['call', 'AI calls'], ['scheduled', 'Promised'], ['human', 'Human team'], ['done', 'Paid']];
+const FILTERS = [['all', 'All'], ['call', 'AI calls'], ['scheduled', 'Promised'], ['human', 'Human team'], ['done', 'Paid'], ['agent', 'Agent reviewed']];
 const TAG = { scheduled: 'Promise', verify: 'Verify', human: 'Person', done: 'Paid' };
 let lastStats = null, prevPos = {}, moved = {}, openMenu = null, queue = [], drawerId = null, filter = 'all', view = 'queue';
 
@@ -385,7 +385,7 @@ function setView(v) {
 
 function inFilter(a) {
   const b = a.rank.bucket;
-  return filter === 'all' || b === filter || (filter === 'human' && (b === 'human' || b === 'verify'));
+  return filter === 'all' || filter === 'agent' || b === filter || (filter === 'human' && (b === 'human' || b === 'verify'));
 }
 
 function rowHTML(a) {
@@ -429,7 +429,7 @@ function rowHTML(a) {
 }
 
 function renderTabs(accounts) {
-  const st = lastStats || {}; const c = (f) => ({ all: st.total, call: st.toCall, scheduled: st.scheduled, human: (st.verify || 0) + (st.human || 0), done: st.done }[f] ?? 0);
+  const st = lastStats || {}; const c = (f) => ({ all: st.total, call: st.toCall, scheduled: st.scheduled, human: (st.verify || 0) + (st.human || 0), done: st.done, agent: st.agent }[f] ?? 0);
   $('#tabs').innerHTML = FILTERS.map(([k, label]) => `<button class="tab ${filter === k ? 'active' : ''}" role="tab" aria-selected="${filter === k}" data-filter="${k}">${label} <b>${c(k)}</b></button>`).join('');
 }
 
@@ -499,7 +499,7 @@ function renderConn(h) {
 
 async function refresh() {
   try {
-    const [q, events, fair, health, imp] = await Promise.all([api('/api/queue?limit=60'), api('/api/events'), api('/api/fairness'), api('/health'), api('/api/import-report')]);
+    const [q, events, fair, health, imp] = await Promise.all([api(filter === 'agent' ? '/api/queue?agent=1' : '/api/queue?limit=60'), api('/api/events'), api('/api/fairness'), api('/health'), api('/api/import-report')]);
     queue = q.accounts;
     lastStats = q.stats;
     renderTabs(q.accounts);
@@ -639,7 +639,7 @@ document.addEventListener('click', async (e) => {
       const poll = setInterval(async () => {
         const st = await api('/api/ranking-agent/status');
         $('#agentStatus').textContent = st.running ? `Ranking agent: ${st.done}/${st.total} reviewed…` : `Ranking agent: ${st.changed} of ${st.total} changed (${st.source || ''})`;
-        if (!st.running) { clearInterval(poll); toast(`Ranking agent done: ${st.changed} of ${st.total} changed`); refresh(); }
+        if (!st.running) { clearInterval(poll); toast(`Ranking agent done: ${st.changed} of ${st.total} changed. Showing them now`); filter = 'agent'; prevPos = {}; refresh(); }
       }, 1500);
       return;
     }
