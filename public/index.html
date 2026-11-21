@@ -101,7 +101,7 @@ button:focus-visible,label:focus-within,a:focus-visible{outline:2px solid var(--
 .tag{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:var(--r-pill);white-space:nowrap}
 .t-scheduled{background:var(--blue-soft);color:var(--blue)} .t-verify{background:var(--warn-soft);color:var(--warn)}
 .t-human{background:var(--violet-soft);color:var(--violet)} .t-done{background:var(--ok-soft);color:var(--ok)}
-.t-part{background:var(--warn-soft);color:var(--warn)} .t-explore{background:var(--char);color:var(--gold)} .t-issue{background:var(--bad-soft);color:var(--bad)}
+.t-agent{background:var(--violet-soft);color:var(--violet)} .t-part{background:var(--warn-soft);color:var(--warn)} .t-explore{background:var(--char);color:var(--gold)} .t-issue{background:var(--bad-soft);color:var(--bad)}
 .move{font-size:11px;font-weight:600;color:var(--ok);background:var(--ok-soft);padding:1px 7px;border-radius:var(--r-pill)}
 .move.down{color:var(--bad);background:var(--bad-soft)}
 .score{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
@@ -248,7 +248,8 @@ table.t tr:last-child td{border-bottom:0}
         <div class="panel">
           <div class="toolbar">
             <div class="tabs" id="tabs" role="tablist"></div>
-            <span class="hint">Click a row to see why · ⋯ to simulate an outcome</span>
+            <button class="pill ghost" id="runAgent" title="LLM reviews the ~5% of borrowers where the signals conflict">Run ranking agent</button>
+            <span class="hint" id="agentStatus">Click a row to see why · ⋯ to simulate an outcome</span>
           </div>
           <div class="import" id="importReport" hidden></div>
           <div class="thead"><span>#</span><span>Borrower</span><span>Why now</span><span>Score</span><span style="text-align:right">Action</span></div>
@@ -399,6 +400,7 @@ function rowHTML(a) {
       <div class="name">${esc(a.name)}
         ${TAG[b] ? `<span class="tag t-${b}">${TAG[b]}</span>` : ''}
         ${a.rank.explore ? '<span class="tag t-explore">Random check</span>' : ''}
+        ${a.rank.agent ? '<span class="tag t-agent">Agent reviewed</span>' : ''}
         ${p?.status === 'PARTIALLY_PAID' ? '<span class="tag t-part">Part paid</span>' : ''}
         ${issues ? `<span class="tag t-issue">${issues} issue${issues > 1 ? 's' : ''}</span>` : ''}
         ${mv ? `<span class="move ${mv < 0 ? 'down' : ''}">${mv > 0 ? '↑' : '↓'} ${Math.abs(mv)}</span>` : ''}
@@ -630,6 +632,16 @@ document.addEventListener('click', async (e) => {
       await api(`/api/accounts/${encodeURIComponent(next.id)}/call`, {});
       toast(`AI agent is calling ${next.name}`);
       return refresh();
+    }
+    if (t.id === 'runAgent') {
+      const j = await api('/api/ranking-agent/run', { limit: 25 });
+      toast(`Ranking agent reviewing ${j.total} flagged borrowers`);
+      const poll = setInterval(async () => {
+        const st = await api('/api/ranking-agent/status');
+        $('#agentStatus').textContent = st.running ? `Ranking agent: ${st.done}/${st.total} reviewed…` : `Ranking agent: ${st.changed} of ${st.total} changed (${st.source || ''})`;
+        if (!st.running) { clearInterval(poll); toast(`Ranking agent done: ${st.changed} of ${st.total} changed`); refresh(); }
+      }, 1500);
+      return;
     }
     if (t.id === 'reset') { await api('/api/reset', {}); moved = {}; prevPos = {}; filter = 'all'; toast('Demo reset to the sample book'); setView('queue'); return refresh(); }
   } catch (err) { toast(err.message); refresh(); }

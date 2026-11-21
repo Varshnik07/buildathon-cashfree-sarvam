@@ -75,6 +75,13 @@ export function scoreAccount(a, now = today()) {
     const future = out.outcome === 'promise' && out.promiseDate && -daysBetween(out.promiseDate, now) > 0;
     if (future) return { bucket: 'scheduled', score: Math.round(ext.priority), parts: [], reasons: [`Promised to pay on ${fmt(out.promiseDate)}${out.note ? ` ("${out.note}")` : ''}. AI calls back then`, ext.reason] };
     const live = Boolean(a.lastOutcome || sig.paymentFailedAt || pay.status);
+    const ag = a.agent;
+    const agentNote = ag && (ag.decision !== 'keep' || ag.newAction || ag.newChannel)
+      ? `Ranking agent: ${ag.reason}${ag.newAction ? ` → ${ag.newAction}` : ''}` : null;
+    if (!live && ag?.decision === 'requeue' && ag.newQueue) {
+      const qmap = { verify_payment: 'verify', human_desk: 'human', field_or_human: 'human', hold: 'scheduled', contact_today: 'call' };
+      if (qmap[ag.newQueue] !== 'call') return { bucket: qmap[ag.newQueue], score: Math.round(ext.priority), parts: [], agent: true, reasons: [agentNote, ext.reason] };
+    }
     if (!live) {
       const map = { verify_payment: 'verify', human_desk: 'human', skip_trace: 'human', field_or_human: 'human', hold: 'scheduled', closed: 'done' };
       const why = {
@@ -85,7 +92,7 @@ export function scoreAccount(a, now = today()) {
         hold: `On hold until ${ext.holdUntil ? fmt(ext.holdUntil) : 'later'} (${(ext.ruleId || '').replace(/^R\d+_/, '').replace(/_/g, ' ')})`,
         closed: 'Nothing overdue',
       };
-      if (map[ext.queue]) return { bucket: map[ext.queue], score: Math.round(ext.priority), parts: [], reasons: [why[ext.queue], ext.reason] };
+      if (map[ext.queue] && !(ag?.decision === 'requeue' && ag.newQueue === 'contact_today')) return { bucket: map[ext.queue], score: Math.round(ext.priority), parts: [], agent: Boolean(agentNote), reasons: [agentNote || why[ext.queue], ext.reason].filter(Boolean) };
     }
     const band = ext.band.replace(/_/g, ' ').replace(/^(\w) /, '$1 · ');
     const xparts = [{ label: `Band ${band} (pay-speed ${ext.payScore})`, points: ext.priority }];
@@ -96,8 +103,8 @@ export function scoreAccount(a, now = today()) {
     if (out.outcome === 'promise' && out.promiseDate) xparts.push({ label: `Promise lapsed on ${fmt(out.promiseDate)}`, points: WEIGHTS.promiseDue });
     const lead = xparts.length > 1 ? xparts.at(-1).label : null;
     return {
-      bucket: 'call', score: clamp(Math.round(xparts.reduce((s, p) => s + p.points, 0))),
-      reasons: [lead, ext.reason, `Band ${band}`].filter(Boolean),
+      bucket: 'call', score: clamp(Math.round(xparts.reduce((s, p) => s + p.points, 0))), agent: Boolean(agentNote),
+      reasons: [lead, agentNote, ext.reason, `Band ${band}`].filter(Boolean),
       parts: xparts.map((p) => ({ ...p, points: Math.round(p.points) })),
     };
   }
@@ -154,6 +161,12 @@ export function rankAccounts(accounts, now = today(), { explore = true } = {}) {
 
   let callList = sorted.filter((a) => a.rank.bucket === 'call');
   const rest = sorted.filter((a) => a.rank.bucket !== 'call');
+  // Ranking agent moves (±100 places, already clipped) apply on top of the code order.
+  for (const a of callList.filter((x) => x.agent?.decision === 'move' && x.agent.rankDelta)) {
+    const from = callList.indexOf(a);
+    callList.splice(from, 1);
+    callList.splice(Math.max(0, Math.min(callList.length, from + a.agent.rankDelta)), 0, a);
+  }
   const k = explore ? Math.floor(callList.length * EXPLORE_SHARE) : 0;
   if (k > 0) {
     // Pick k random people from outside the top 10 and slot one in at every 10th position.

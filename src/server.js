@@ -13,6 +13,7 @@ import * as store from './store.js';
 import { rankAccounts, scoreAccount, fairnessCheck, callPolicy } from './rank.js';
 import { extractSignals } from './signals.js';
 import { importBook } from './importer.js';
+import * as rankingAgent from './rankingAgent.js';
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -148,6 +149,10 @@ app.get('/api/queue', (req, res) => {
     },
   });
 });
+
+// Ranking agent: LLM reviews the flagged ~5% of borrowers (runs in the background).
+app.post('/api/ranking-agent/run', wrap(async (req, res) => res.json(await rankingAgent.run({ limit: Number(req.body?.limit) || 25 }))));
+app.get('/api/ranking-agent/status', (_req, res) => res.json({ ...rankingAgent.status(), flagged: rankingAgent.loadCards().length }));
 
 app.get('/api/fairness', (_req, res) => res.json(fairnessCheck(store.listAccounts())));
 

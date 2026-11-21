@@ -50,13 +50,17 @@ export async function translate(input, { source = 'auto', target = 'ta-IN', mode
 }
 
 // Chat completion (OpenAI-compatible). model: sarvam-105b | sarvam-105b-conversations
-export async function chat(messages, { model = 'sarvam-105b', temperature = 0.2 } = {}) {
+// reasoning_effort: null turns "thinking" off; otherwise it can spend the whole budget reasoning
+// and return no content.
+export async function chat(messages, { model = 'sarvam-105b', temperature = 0.2, maxTokens = 4000 } = {}) {
   const out = await call('/v1/chat/completions', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model, messages, temperature }),
+    body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens, reasoning_effort: null }),
   });
-  return out.choices[0].message.content;
+  const msg = out.choices[0].message;
+  if (!msg.content) throw new Error(`Sarvam chat returned no content (finish: ${out.choices[0].finish_reason})`);
+  return msg.content;
 }
 
 // Ask the chat model for JSON and parse it (tolerates ```json fences and <think> blocks).
